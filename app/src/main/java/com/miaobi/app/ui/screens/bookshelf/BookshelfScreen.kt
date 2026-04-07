@@ -84,7 +84,10 @@ fun BookshelfScreen(
                         .padding(16.dp)
                 ) {
                     // 写作统计概览
-                    WritingStatsCard(storyCount = uiState.stories.size)
+                    WritingStatsCard(
+                        storyCount = uiState.stories.size,
+                        totalWordCount = uiState.totalWordCount
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     // 故事列表
                     StoryList(
@@ -234,7 +237,7 @@ private fun EmptyBookshelf(modifier: Modifier = Modifier) {
 // ─── Writing Stats Overview ──────────────────────────────────────────────
 
 @Composable
-private fun WritingStatsCard(storyCount: Int) {
+private fun WritingStatsCard(storyCount: Int, totalWordCount: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -277,10 +280,42 @@ private fun WritingStatsCard(storyCount: Int) {
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
             )
 
-            // 激励文字
+            // 总字数
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "✍️",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = formatWordCount(totalWordCount),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "字数",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+
+            Divider(
+                modifier = Modifier
+                    .height(48.dp)
+                    .width(1.dp),
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
+
+            // 激励文字
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = when {
+                        storyCount == 0 -> "🌱"
+                        storyCount < 3 -> "🔥"
+                        storyCount < 10 -> "⭐"
+                        else -> "👑"
+                    },
                     style = MaterialTheme.typography.headlineMedium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -307,6 +342,14 @@ private fun WritingStatsCard(storyCount: Int) {
                 )
             }
         }
+    }
+}
+
+private fun formatWordCount(count: Int): String {
+    return when {
+        count >= 10000 -> String.format("%.1fW", count / 10000.0)
+        count >= 1000 -> String.format("%.1fK", count / 1000.0)
+        else -> count.toString()
     }
 }
 

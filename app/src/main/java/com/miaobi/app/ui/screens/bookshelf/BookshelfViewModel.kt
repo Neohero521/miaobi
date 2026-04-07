@@ -14,6 +14,7 @@ import javax.inject.Inject
 
 data class BookshelfUiState(
     val stories: List<Story> = emptyList(),
+    val totalWordCount: Int = 0,
     val isLoading: Boolean = true,
     val showCreateDialog: Boolean = false,
     val newStoryTitle: String = "",
@@ -65,8 +66,13 @@ class BookshelfViewModel @Inject constructor(
         viewModelScope.launch {
             storyRepository.getAllStories()
                 .collect { stories ->
+                    // 计算总字数
+                    var totalWords = 0
+                    stories.forEach { story ->
+                        totalWords += story.wordCount
+                    }
                     _uiState.update {
-                        it.copy(stories = stories, isLoading = false)
+                        it.copy(stories = stories, totalWordCount = totalWords, isLoading = false)
                     }
                 }
         }
