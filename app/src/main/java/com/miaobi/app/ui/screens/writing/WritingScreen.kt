@@ -196,8 +196,8 @@ fun WritingScreen(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(
-                            end = 20.dp,
-                            bottom = if (uiState.showToolbar) 156.dp else 16.dp
+                            end = 16.dp,
+                            bottom = 72.dp
                         )
                 )
             }
