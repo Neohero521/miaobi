@@ -323,9 +323,11 @@ class WritingViewModel @Inject constructor(
             is WritingEvent.UseContinuationSuggestion -> {
                 val suggestion = _uiState.value.continuationSuggestions.getOrNull(event.index)
                 if (suggestion != null) {
+                    val newContent = _uiState.value.content + suggestion.content
                     _uiState.update { state ->
                         state.copy(
-                            content = state.content + suggestion.content,
+                            content = newContent,
+                            currentChapter = state.currentChapter?.copy(content = newContent),
                             continuationSuggestions = emptyList(),
                             showContinuationPanel = false
                         )
