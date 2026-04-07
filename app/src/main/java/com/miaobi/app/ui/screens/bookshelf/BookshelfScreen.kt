@@ -112,7 +112,8 @@ fun BookshelfScreen(
                     )
                 },
                 onUseTemplate = { viewModel.onEvent(BookshelfEvent.ShowTemplateDialog) },
-                onDismiss = { viewModel.onEvent(BookshelfEvent.ToggleCreateDialog) }
+                onDismiss = { viewModel.onEvent(BookshelfEvent.ToggleCreateDialog) },
+                isCreating = uiState.isCreatingStory
             )
         }
 
@@ -512,7 +513,8 @@ private fun CreateStoryDialog(
     onDescriptionChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onUseTemplate: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isCreating: Boolean = false
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -574,10 +576,18 @@ private fun CreateStoryDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                enabled = title.isNotBlank(),
+                enabled = title.isNotBlank() && !isCreating,
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("创建")
+                if (isCreating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(if (isCreating) "创建中..." else "创建")
             }
         },
         dismissButton = {

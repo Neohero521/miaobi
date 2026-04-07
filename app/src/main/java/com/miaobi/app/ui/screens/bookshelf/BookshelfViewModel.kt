@@ -22,6 +22,7 @@ data class BookshelfUiState(
     val showTemplateDialog: Boolean = false,
     val selectedTemplate: StoryTemplate? = null,
     val showTemplateDetailDialog: Boolean = false,
+    val isCreatingStory: Boolean = false,
     val error: String? = null
 )
 
@@ -161,6 +162,7 @@ class BookshelfViewModel @Inject constructor(
     private fun createStory(title: String, description: String, templateType: String) {
         Log.d("BookshelfVM", "createStory called: title=$title, description=$description, templateType=$templateType")
         viewModelScope.launch {
+            _uiState.update { it.copy(isCreatingStory = true) }
             try {
                 val story = Story(
                     title = title.ifBlank { "无标题故事" },
@@ -181,12 +183,12 @@ class BookshelfViewModel @Inject constructor(
                 chapterRepository.insertChapter(chapter)
                 Log.d("BookshelfVM", "Chapter inserted successfully")
                 _uiState.update {
-                    it.copy(showCreateDialog = false, newStoryTitle = "", newStoryDescription = "", selectedTemplate = null, error = null)
+                    it.copy(showCreateDialog = false, newStoryTitle = "", newStoryDescription = "", selectedTemplate = null, isCreatingStory = false, error = null)
                 }
             } catch (e: Exception) {
                 Log.e("BookshelfVM", "createStory failed", e)
                 _uiState.update {
-                    it.copy(error = "创建失败: ${e.message}")
+                    it.copy(isCreatingStory = false, error = "创建失败: ${e.message}")
                 }
             }
         }
