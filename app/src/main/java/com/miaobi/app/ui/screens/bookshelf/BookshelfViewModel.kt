@@ -202,13 +202,15 @@ class BookshelfViewModel @Inject constructor(
 
     private fun createStoryFromTemplate(title: String, description: String, template: StoryTemplate) {
         viewModelScope.launch {
-            // Create story with template type
-            val story = Story(
-                title = title.ifBlank { template.title },
-                description = description.ifBlank { template.summary },
-                templateType = template.genre
-            )
-            val storyId = storyRepository.insertStory(story)
+            try {
+                // Create story with template type
+                val story = Story(
+                    title = title.ifBlank { template.title },
+                    description = description.ifBlank { template.summary },
+                    templateType = template.genre
+                )
+                val storyId = storyRepository.insertStory(story)
+                Log.d("BookshelfVM", "createStoryFromTemplate: story created with id=$storyId")
 
             // 自动创建第一章（与createStory保持一致）
             try {
@@ -268,6 +270,18 @@ class BookshelfViewModel @Inject constructor(
                     newStoryDescription = "",
                     selectedTemplate = null
                 )
+            }
+            } catch (e: Exception) {
+                Log.e("BookshelfVM", "createStoryFromTemplate failed", e)
+                _uiState.update {
+                    it.copy(
+                        showCreateDialog = false,
+                        showTemplateDialog = false,
+                        showTemplateDetailDialog = false,
+                        selectedTemplate = null,
+                        error = "创建失败: ${e.message}"
+                    )
+                }
             }
         }
     }
