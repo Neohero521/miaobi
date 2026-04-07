@@ -215,6 +215,8 @@ fun WritingScreen(
                         }
                     },
                     onInspiration = { viewModel.onEvent(WritingEvent.ToggleInspirationSheet) },
+                    onCharacter = { viewModel.onEvent(WritingEvent.ToggleCharacterSheet) },
+                    onWorldSetting = { viewModel.onEvent(WritingEvent.ToggleWorldSettingSheet) },
                     onSave = { viewModel.onEvent(WritingEvent.SaveContent) },
                     canUndo = uiState.undoStack.isNotEmpty(),
                     canRedo = uiState.redoStack.isNotEmpty()

@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * 底部写作工具栏 — 打字机美学
- * 左：撤销/重做  |  右：润色 / 改写 / 灵感 / 保存
+ * 左：撤销/重做  |  右：润色 / 改写 / 灵感 / 人物 / 世界 / 保存
  */
 @Composable
 fun WritingToolbar(
@@ -22,6 +22,8 @@ fun WritingToolbar(
     onPolish: () -> Unit,
     onRewrite: () -> Unit,
     onInspiration: () -> Unit,
+    onCharacter: () -> Unit,
+    onWorldSetting: () -> Unit,
     onSave: () -> Unit,
     canUndo: Boolean,
     canRedo: Boolean,
@@ -68,7 +70,7 @@ fun WritingToolbar(
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
             ) {}
 
-            // ── Right: Polish / Rewrite / Inspiration / Save ─────────────────
+            // ── Right: Polish / Rewrite / Inspiration / Character / World / Save ─
             Row(
                 horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -87,6 +89,16 @@ fun WritingToolbar(
                     icon = Icons.Default.Lightbulb,
                     label = "灵感",
                     onClick = onInspiration
+                )
+                ToolbarTextButton(
+                    icon = Icons.Default.Person,
+                    label = "人物",
+                    onClick = onCharacter
+                )
+                ToolbarTextButton(
+                    icon = Icons.Default.AutoStories,
+                    label = "世界",
+                    onClick = onWorldSetting
                 )
                 ToolbarTextButton(
                     icon = Icons.Default.Save,
