@@ -20,6 +20,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // BuildConfig for API URL
+        buildConfigField("String", "API_BASE_URL", "\"${project.findProperty("apiBaseUrl")}\"")
     }
 
     buildTypes {

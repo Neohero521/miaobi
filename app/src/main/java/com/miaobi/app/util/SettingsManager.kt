@@ -3,6 +3,7 @@ package com.miaobi.app.util
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -23,6 +24,11 @@ class SettingsManager @Inject constructor(
         val API_KEY = stringPreferencesKey("api_key")
         val API_URL = stringPreferencesKey("api_url")
         val MODEL_NAME = stringPreferencesKey("model_name")
+        val WELCOME_SHOWN = booleanPreferencesKey("welcome_shown")
+    }
+
+    val welcomeShown: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.WELCOME_SHOWN] ?: false
     }
 
     val aiConfig: Flow<AiConfig> = context.dataStore.data.map { preferences ->
@@ -56,6 +62,12 @@ class SettingsManager @Inject constructor(
             preferences[PreferencesKeys.API_KEY] = config.apiKey
             preferences[PreferencesKeys.API_URL] = config.apiUrl
             preferences[PreferencesKeys.MODEL_NAME] = config.modelName
+        }
+    }
+
+    suspend fun setWelcomeShown() {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.WELCOME_SHOWN] = true
         }
     }
 }
