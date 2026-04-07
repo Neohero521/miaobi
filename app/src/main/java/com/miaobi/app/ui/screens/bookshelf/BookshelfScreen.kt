@@ -77,26 +77,26 @@ fun BookshelfScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    // 写作统计概览
-                    WritingStatsCard(
-                        storyCount = uiState.stories.size,
-                        totalWordCount = uiState.totalWordCount
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    // 写作统计概览（作为header）
+                    item {
+                        WritingStatsCard(
+                            storyCount = uiState.stories.size,
+                            totalWordCount = uiState.totalWordCount
+                        )
+                    }
                     // 故事列表
-                    StoryList(
-                        stories = uiState.stories,
-                        onStoryClick = onStoryClick,
-                        onDeleteClick = { storyId ->
-                            viewModel.onEvent(BookshelfEvent.DeleteStory(storyId))
-                        }
-                    )
+                    items(uiState.stories, key = { it.id }) { story ->
+                        TypewriterStoryCard(
+                            story = story,
+                            onClick = { onStoryClick(story.id) },
+                            onDeleteClick = { viewModel.onEvent(BookshelfEvent.DeleteStory(story.id)) }
+                        )
+                    }
                 }
             }
         }
