@@ -1,5 +1,6 @@
 package com.miaobi.app.ui.screens.bookshelf
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
@@ -20,7 +21,8 @@ data class BookshelfUiState(
     val templates: List<StoryTemplate> = emptyList(),
     val showTemplateDialog: Boolean = false,
     val selectedTemplate: StoryTemplate? = null,
-    val showTemplateDetailDialog: Boolean = false
+    val showTemplateDetailDialog: Boolean = false,
+    val error: String? = null
 )
 
 sealed class BookshelfEvent {
@@ -157,6 +159,7 @@ class BookshelfViewModel @Inject constructor(
     }
 
     private fun createStory(title: String, description: String, templateType: String) {
+        Log.d("BookshelfVM", "createStory called: title=$title, description=$description, templateType=$templateType")
         viewModelScope.launch {
             try {
                 val story = Story(
@@ -164,7 +167,9 @@ class BookshelfViewModel @Inject constructor(
                     description = description,
                     templateType = templateType
                 )
+                Log.d("BookshelfVM", "Inserting story: $story")
                 val storyId = storyRepository.insertStory(story)
+                Log.d("BookshelfVM", "Story inserted with id: $storyId")
                 // 自动创建第一章，避免打开 WritingScreen 时无章节导致问题
                 val chapter = Chapter(
                     storyId = storyId,
@@ -172,14 +177,16 @@ class BookshelfViewModel @Inject constructor(
                     content = "",
                     orderIndex = 0
                 )
+                Log.d("BookshelfVM", "Inserting chapter: $chapter")
                 chapterRepository.insertChapter(chapter)
+                Log.d("BookshelfVM", "Chapter inserted successfully")
                 _uiState.update {
-                    it.copy(showCreateDialog = false, newStoryTitle = "", newStoryDescription = "", selectedTemplate = null)
+                    it.copy(showCreateDialog = false, newStoryTitle = "", newStoryDescription = "", selectedTemplate = null, error = null)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("BookshelfVM", "createStory failed", e)
                 _uiState.update {
-                    it.copy(showCreateDialog = false)
+                    it.copy(error = "创建失败: ${e.message}")
                 }
             }
         }

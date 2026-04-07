@@ -573,13 +573,7 @@ private fun CreateStoryDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    try {
-                        onConfirm()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                },
+                onClick = onConfirm,
                 enabled = title.isNotBlank(),
                 shape = RoundedCornerShape(8.dp)
             ) {
