@@ -7,5 +7,6 @@ data class ContinuationSuggestion(
     val id: Int,
     val content: String,
     val wordCount: Int,
-    val isSelected: Boolean = false
+    val isSelected: Boolean = false,
+    val directionLabel: String = ""
 )

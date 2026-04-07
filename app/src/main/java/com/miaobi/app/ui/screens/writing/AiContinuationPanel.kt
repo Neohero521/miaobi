@@ -109,17 +109,23 @@ fun AiContinuationPanel(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary
+                        Text(
+                            text = "✍️",
+                            style = MaterialTheme.typography.titleLarge
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "AI 正在挥笔创作，请稍候...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Column {
+                            Text(
+                                text = "AI 正在挥笔创作",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "正在思考三个不同的故事方向...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                 }
             }
@@ -216,14 +222,14 @@ private fun ContinuationSuggestionCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Typewriter badge
+                    // Direction label badge
                     Surface(
                         shape = RoundedCornerShape(4.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
-                            text = "建议 ${index + 1}",
+                            text = suggestion.directionLabel.ifBlank { "方向 ${index + 1}" },
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant,

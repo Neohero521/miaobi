@@ -838,6 +838,7 @@ class WritingViewModel @Inject constructor(
         // 正则 split 的结果是：["", "方向1内容", "方向2内容", "方向3内容"]
         if (parts.size >= 4) {
             // parts[0] 为空串（方向标记前的空内容），从 parts[1] 开始是实际内容
+            val directions = listOf("剧情升级", "情感互动", "意外转折")
             val suggestions = listOf(1, 2, 3).mapNotNull { index ->
                 val partContent = parts.getOrNull(index)?.trim() ?: return@mapNotNull null
                 if (partContent.isBlank()) return@mapNotNull null
@@ -845,7 +846,8 @@ class WritingViewModel @Inject constructor(
                     id = index - 1,
                     content = partContent,
                     wordCount = partContent.length,
-                    isSelected = index == 1
+                    isSelected = index == 1,
+                    directionLabel = "方向${index}：${directions[index - 1]}"
                 )
             }
             if (suggestions.isNotEmpty()) return suggestions
@@ -854,6 +856,7 @@ class WritingViewModel @Inject constructor(
         // 回退：均分内容为3段（保持向后兼容）
         val totalLength = content.length
         val partSize = totalLength / 3
+        val directions = listOf("剧情升级", "情感互动", "意外转折")
 
         return listOf(0, 1, 2).map { index ->
             val start = index * partSize
@@ -863,7 +866,8 @@ class WritingViewModel @Inject constructor(
                 id = index,
                 content = partContent,
                 wordCount = partContent.length,
-                isSelected = index == 0
+                isSelected = index == 0,
+                directionLabel = "方向${index + 1}：${directions[index]}"
             )
         }.filter { it.content.isNotBlank() }
     }
