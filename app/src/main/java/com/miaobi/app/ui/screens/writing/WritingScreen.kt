@@ -37,6 +37,10 @@ import com.miaobi.app.domain.model.ChapterDraft
 import com.miaobi.app.domain.model.ChapterDraftVersion
 import com.miaobi.app.domain.model.Character
 import com.miaobi.app.domain.model.WorldSetting
+import com.miaobi.app.ui.components.ChapterDrawer
+import com.miaobi.app.ui.components.SaveStatusIndicator
+import com.miaobi.app.ui.components.TextSelectionToolbar
+import com.miaobi.app.ui.components.TypewriterGeneratedText
 import com.miaobi.app.ui.components.TypingIndicator
 import java.io.File
 import java.text.SimpleDateFormat
@@ -58,6 +62,26 @@ fun WritingScreen(
     val continuationSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val showRewriteSheet = uiState.rewriteState.selectedText.isNotBlank()
+
+    // ── Text selection toolbar state ──────────────────────────────────────────
+    var selectionToolbarVisible by remember { mutableStateOf(false) }
+    var selectedTextForToolbar by remember { mutableStateOf("") }
+
+    // ── Auto-save timer (every 30 seconds) ────────────────────────────────────
+    var lastAutoSaveTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var isSaving by remember { mutableStateOf(false) }
+    var lastSaveSuccess by remember { mutableStateOf(true) }
+
+    LaunchedEffect(uiState.content) {
+        val now = System.currentTimeMillis()
+        if (now - lastAutoSaveTime >= 30_000L && uiState.content.isNotBlank()) {
+            lastAutoSaveTime = now
+            isSaving = true
+            viewModel.onEvent(WritingEvent.SaveContent)
+            kotlinx.coroutines.delay(1500)
+            isSaving = false
+        }
+    }
 
     // ── Continuation panel ────────────────────────────────────────────────────
     if (uiState.showContinuationPanel) {
@@ -91,7 +115,11 @@ fun WritingScreen(
                         exportToTxt(context, chapter.title, uiState.content)
                     }
                 },
-                wordCount = uiState.content.length
+                wordCount = uiState.content.length,
+                isSaving = isSaving,
+                lastSaveTime = uiState.currentChapter?.updatedAt,
+                hasUnsavedChanges = uiState.content.isNotBlank(),
+                saveError = uiState.error
             )
         }
     ) { padding ->
@@ -127,9 +155,31 @@ fun WritingScreen(
                         onContentChange = { viewModel.onEvent(WritingEvent.UpdateContent(it)) },
                         onTextSelected = { selected ->
                             if (selected.isNotBlank()) {
-                                viewModel.onEvent(WritingEvent.TriggerRewrite(selected))
+                                selectedTextForToolbar = selected
+                                selectionToolbarVisible = true
                             }
                         }
+                    )
+                }
+
+                // ── Text Selection Floating Toolbar ───────────────────────────────
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    TextSelectionToolbar(
+                        visible = selectionToolbarVisible,
+                        selectedText = selectedTextForToolbar,
+                        onRewrite = {
+                            viewModel.onEvent(WritingEvent.TriggerRewrite(selectedTextForToolbar))
+                            viewModel.onEvent(WritingEvent.ToggleRewriteStyleRow)
+                            selectionToolbarVisible = false
+                        },
+                        onPolish = {
+                            viewModel.onEvent(WritingEvent.Polish)
+                            selectionToolbarVisible = false
+                        },
+                        onDismiss = { selectionToolbarVisible = false }
                     )
                 }
 
@@ -196,13 +246,22 @@ fun WritingScreen(
     }
 
     // ── All Bottom Sheets ─────────────────────────────────────────────────────
-    if (uiState.showChapterList) ChapterListSheet(
-        chapters = uiState.chapters, currentChapter = uiState.currentChapter,
-        onSelectChapter = { viewModel.onEvent(WritingEvent.SelectChapter(it)) },
-        onDeleteChapter = { viewModel.onEvent(WritingEvent.DeleteChapter(it)) },
-        onAddChapter = { viewModel.onEvent(WritingEvent.ShowAddChapterDialog) },
-        onDismiss = { viewModel.onEvent(WritingEvent.ToggleChapterList) }
-    )
+    // ── Chapter Drawer (left-side) ─────────────────────────────────────────────
+    Box(modifier = Modifier.fillMaxSize()) {
+        ChapterDrawer(
+            isOpen = uiState.showChapterList,
+            chapters = uiState.chapters,
+            currentChapter = uiState.currentChapter,
+            onSelectChapter = { chapter ->
+                viewModel.onEvent(WritingEvent.SelectChapter(chapter))
+                viewModel.onEvent(WritingEvent.ToggleChapterList)
+            },
+            onDeleteChapter = { viewModel.onEvent(WritingEvent.DeleteChapter(it)) },
+            onAddChapter = { viewModel.onEvent(WritingEvent.ShowAddChapterDialog) },
+            onDismiss = { viewModel.onEvent(WritingEvent.ToggleChapterList) },
+            modifier = Modifier.align(Alignment.TopStart)
+        )
+    }
 
     if (uiState.showCharacterSheet) CharacterSheet(
         characters = uiState.characters,
@@ -320,7 +379,11 @@ private fun WritingTopBar(
     onInspiration: () -> Unit,
     onMultiBranch: () -> Unit,
     onExport: () -> Unit,
-    wordCount: Int
+    wordCount: Int,
+    isSaving: Boolean,
+    lastSaveTime: Long?,
+    hasUnsavedChanges: Boolean,
+    saveError: String?
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -332,17 +395,33 @@ private fun WritingTopBar(
         TopAppBar(
             title = {
                 Column {
-                    Text(
-                        text = chapterTitle ?: storyTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
-                    if (chapterTitle != null) {
-                        Text(
-                            text = "$storyTitle  ·  ${wordCount}字",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.65f),
-                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = chapterTitle ?: storyTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                            )
+                            if (chapterTitle != null) {
+                                Text(
+                                    text = "$storyTitle  ·  ${wordCount}字",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.65f),
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        // Auto-save status indicator
+                        SaveStatusIndicator(
+                            isSaving = isSaving,
+                            lastSaveTime = lastSaveTime,
+                            hasUnsavedChanges = hasUnsavedChanges,
+                            error = saveError,
+                            modifier = Modifier.padding(start = 8.dp)
                         )
                     }
                 }
