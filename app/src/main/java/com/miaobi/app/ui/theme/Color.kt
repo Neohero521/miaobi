@@ -2,27 +2,60 @@ package com.miaobi.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+// ─── Typewriter Light Theme ──────────────────────────────────────────────────
+val TypewriterCream         = Color(0xFFF5F0E8)   // 打字纸背景
+val TypewriterSurface       = Color(0xFFEDE7DA)   // 卡片/面板背景
+val TypewriterPaper         = Color(0xFFFAF7F2)   // 高亮纸面
+val TypewriterLined         = Color(0xFFE0D9C8)   // 横线纸纹
+
+// ─── Typewriter Dark Theme ────────────────────────────────────────────────────
+val TypewriterNight         = Color(0xFF1E1B18)   // 深色背景
+val TypewriterNightSurface = Color(0xFF2A2724)   // 深色卡片
+val TypewriterNightPaper    = Color(0xFF252220)   // 深色纸面
+
+// ─── Primary — 琥珀墨水色 ─────────────────────────────────────────────────────
+val TypewriterAmber         = Color(0xFF8B6914)   // 浅色主题主色（琥珀）
+val TypewriterAmberDark     = Color(0xFFD4A843)   // 深色主题主色（金琥珀）
+val TypewriterGold          = Color(0xFFB8860B)   // 强调色
+val TypewriterKeyBrown      = Color(0xFF6B4C2A)   // 打字机按键棕
+
+// ─── Text ─────────────────────────────────────────────────────────────────────
+val TypewriterInk           = Color(0xFF2C2416)   // 浅色主题正文（深墨水）
+val TypewriterInkLight      = Color(0xFFE8E0D0)   // 深色主题正文
+val TypewriterFaded         = Color(0xFF7A6F5D)   // 次要文字
+val TypewriterHint          = Color(0xFFAA9E8A)   // 占位符文字
+val TypewriterInkFaint     = Color(0xFF4A3F2F)   // 淡化墨水
+
+// ─── Accent ──────────────────────────────────────────────────────────────────
+val TypewriterRust          = Color(0xFFA63D2F)   // 红色强调（删除线/警示）
+val TypewriterCursor        = Color(0xFF5C4A1F)   // 浅色主题光标
+val TypewriterCursorDark    = Color(0xFFD4A843)   // 深色主题光标
+val TypewriterRibbonRed     = Color(0xFF8B1A1A)   // 色带红（老式打印机）
+
+// ─── Paper textures ─────────────────────────────────────────────────────────
+val TypewriterPaperShadow   = Color(0x1A000000)   // 纸张阴影
+val TypewriterCardBorder    = Color(0x33000000)   // 卡片边框（淡墨线）
+
+// ─── Legacy compat (keep existing names for non-typewriter screens) ───────────
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)
-
 val Purple40 = Color(0xFF5B4A8C)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
-
-val Primary = Color(0xFF5B4A8C)
-val PrimaryVariant = Color(0xFF4A3A7C)
-val Secondary = Color(0xFFF5A623)
-val Background = Color(0xFFF5F5F5)
-val Surface = Color(0xFFFFFFFF)
+val Primary = Color(0xFF8B6914)    // Changed to amber for consistency
+val PrimaryVariant = Color(0xFF6B4C2A)
+val Secondary = Color(0xFFB8860B)
+val Background = Color(0xFFF5F0E8)
+val Surface = Color(0xFFFAF7F2)
 val OnPrimary = Color(0xFFFFFFFF)
-val OnSurface = Color(0xFF1A1A1A)
-val OnBackground = Color(0xFF1A1A1A)
+val OnSurface = Color(0xFF2C2416)
+val OnBackground = Color(0xFF2C2416)
+val TextPrimary = Color(0xFF2C2416)
+val TextSecondary = Color(0xFF7A6F5D)
+val TextHint = Color(0xFFAA9E8A)
 
-val TextPrimary = Color(0xFF1A1A1A)
-val TextSecondary = Color(0xFF666666)
-val TextHint = Color(0xFF999999)
-
+// ─── Semantic ─────────────────────────────────────────────────────────────────
 val Success = Color(0xFF4CAF50)
 val Error = Color(0xFFE53935)
 val Warning = Color(0xFFFF9800)

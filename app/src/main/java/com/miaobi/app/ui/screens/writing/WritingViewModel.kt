@@ -378,8 +378,11 @@ class WritingViewModel @Inject constructor(
                     val newUndoStack = if (state.content != event.content) {
                         (state.undoStack + state.content).takeLast(maxUndo)
                     } else state.undoStack
+                    // 同步更新 currentChapter，确保 saveContent() 使用正确的 content
+                    val updatedChapter = state.currentChapter?.copy(content = event.content)
                     state.copy(
                         content = event.content,
+                        currentChapter = updatedChapter,
                         undoStack = newUndoStack,
                         redoStack = emptyList() // 清空 redo 栈
                     )
@@ -841,9 +844,11 @@ class WritingViewModel @Inject constructor(
 
     private fun acceptGenerated() {
         val newContent = _uiState.value.content + _uiState.value.generatedContent
+        val updatedChapter = _uiState.value.currentChapter?.copy(content = newContent)
         _uiState.update {
             it.copy(
                 content = newContent,
+                currentChapter = updatedChapter,
                 generatedContent = "",
                 userPrompt = ""
             )
@@ -925,10 +930,12 @@ class WritingViewModel @Inject constructor(
         // Replace selected text with the chosen rewrite version in the content
         val currentContent = _uiState.value.content
         val newFullContent = currentContent.replace(originalText, newContent)
+        val updatedChapter = _uiState.value.currentChapter?.copy(content = newFullContent)
 
         _uiState.update {
             it.copy(
                 content = newFullContent,
+                currentChapter = updatedChapter,
                 rewriteState = RewriteState()
             )
         }
@@ -1030,9 +1037,12 @@ class WritingViewModel @Inject constructor(
         if (!selectedBranch.canAccept) return
 
         val newContent = _uiState.value.content + selectedBranch.content
+        val updatedChapter = _uiState.value.currentChapter?.copy(content = newContent)
+
         _uiState.update {
             it.copy(
                 content = newContent,
+                currentChapter = updatedChapter,
                 showMultiBranchSheet = false,
                 multiBranchState = MultiBranchState(branchCount = it.multiBranchState.branchCount),
                 userPrompt = ""
@@ -1092,9 +1102,11 @@ class WritingViewModel @Inject constructor(
         if (!option.canAccept) return
 
         val newContent = _uiState.value.content + "\n\n" + option.content
+        val updatedChapter = _uiState.value.currentChapter?.copy(content = newContent)
         _uiState.update {
             it.copy(
                 content = newContent,
+                currentChapter = updatedChapter,
                 showInspirationSheet = false,
                 inspirationState = InspirationState()
             )
@@ -1210,9 +1222,11 @@ class WritingViewModel @Inject constructor(
     }
 
     private fun selectDraft(draft: ChapterDraft) {
+        val updatedChapter = _uiState.value.currentChapter?.copy(content = draft.content)
         _uiState.update {
             it.copy(
                 content = draft.content,
+                currentChapter = updatedChapter,
                 showDraftHistory = false
             )
         }
@@ -1226,9 +1240,11 @@ class WritingViewModel @Inject constructor(
     }
 
     private fun restoreVersion(version: ChapterDraftVersion) {
+        val updatedChapter = _uiState.value.currentChapter?.copy(content = version.content)
         _uiState.update {
             it.copy(
                 content = version.content,
+                currentChapter = updatedChapter,
                 showDraftVersions = false,
                 draftVersions = emptyList()
             )

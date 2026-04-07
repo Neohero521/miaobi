@@ -1,19 +1,23 @@
 package com.miaobi.app.ui.screens.bookshelf
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.miaobi.app.domain.model.Story
 import com.miaobi.app.domain.model.StoryTemplate
@@ -30,22 +34,31 @@ fun BookshelfScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("我的书架") },
+            TypewriterTopAppBar(
+                title = "我的书架",
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
         floatingActionButton = {
+            // Typewriter key style FAB
             FloatingActionButton(
                 onClick = { viewModel.onEvent(BookshelfEvent.ToggleCreateDialog) },
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 4.dp,
+                    pressedElevation = 8.dp
+                ),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "创建故事")
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(
             modifier = Modifier
@@ -54,7 +67,8 @@ fun BookshelfScreen(
         ) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
+                    modifier = Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.primary
                 )
             } else if (uiState.stories.isEmpty()) {
                 EmptyBookshelf(
@@ -114,32 +128,82 @@ fun BookshelfScreen(
     }
 }
 
+// ─── Typewriter TopAppBar ─────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TypewriterTopAppBar(
+    title: String,
+    colors: TopAppBarColors
+) {
+    TopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Typewriter icon
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "✒",
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        colors = colors
+    )
+}
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
 @Composable
 private fun EmptyBookshelf(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Default.MenuBook,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        // Typewriter illustration
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(100.dp)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("📖", fontSize = 40.sp)
+            }
+        }
+        Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = "暂无故事",
+            text = "书架空空如也",
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "点击右下角创建你的第一个故事",
+            text = "点击右下角「+」创建你的第一个故事",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
         )
     }
 }
+
+// ─── Story List ───────────────────────────────────────────────────────────────
 
 @Composable
 private fun StoryList(
@@ -152,7 +216,7 @@ private fun StoryList(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(stories, key = { it.id }) { story ->
-            StoryCard(
+            TypewriterStoryCard(
                 story = story,
                 onClick = { onStoryClick(story.id) },
                 onDeleteClick = { onDeleteClick(story.id) }
@@ -161,9 +225,11 @@ private fun StoryList(
     }
 }
 
+// ─── Typewriter Story Card ─────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StoryCard(
+private fun TypewriterStoryCard(
     story: Story,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit
@@ -171,86 +237,182 @@ private fun StoryCard(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
 
+    // Typewriter card: paper-like surface with subtle border
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp)),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = story.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            // Header row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    // Title with typewriter pen
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "✒",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = story.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
                     if (story.templateType != "free") {
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         AssistChip(
                             onClick = {},
-                            label = { Text(getGenreDisplayName(story.templateType), style = MaterialTheme.typography.labelSmall) },
-                            modifier = Modifier.height(24.dp)
+                            label = {
+                                Text(
+                                    getGenreDisplayName(story.templateType),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
+                            modifier = Modifier.height(22.dp),
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+                            )
                         )
                     }
                 }
-                if (story.description.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = story.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+
+                // Delete button (typewriter x)
+                IconButton(
+                    onClick = { showDeleteConfirm = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "删除",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (story.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                // Ink-colored description
                 Text(
-                    text = "更新于 ${dateFormat.format(Date(story.updatedAt))}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    text = story.description,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            IconButton(onClick = { showDeleteConfirm = true }) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Typewriter underline separator
+            Divider(
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                thickness = 1.dp
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Date stamp
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "删除",
-                    tint = MaterialTheme.colorScheme.error
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "更新于 ${dateFormat.format(Date(story.updatedAt))}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
             }
         }
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("确认删除") },
-            text = { Text("确定要删除《${story.title}》吗？此操作不可恢复。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteClick()
-                        showDeleteConfirm = false
-                    }
-                ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
-                }
+        TypewriterConfirmDialog(
+            title = "确认删除",
+            message = "确定要删除《${story.title}》吗？此操作不可恢复。",
+            confirmText = "删除",
+            onConfirm = {
+                onDeleteClick()
+                showDeleteConfirm = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("取消")
-                }
-            }
+            onDismiss = { showDeleteConfirm = false }
         )
     }
 }
+
+// ─── Typewriter Confirm Dialog ────────────────────────────────────────────────
+
+@Composable
+private fun TypewriterConfirmDialog(
+    title: String,
+    message: String,
+    confirmText: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("⚠", fontSize = 18.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium)
+            }
+        },
+        text = {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(confirmText, color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+// ─── Create Story Dialog ──────────────────────────────────────────────────────
 
 @Composable
 private fun CreateStoryDialog(
@@ -264,40 +426,66 @@ private fun CreateStoryDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("创建新故事") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("✒", color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("创建新故事")
+            }
+        },
         text = {
             Column {
+                // Title field — typewriter style
                 OutlinedTextField(
                     value = title,
                     onValueChange = onTitleChange,
                     label = { Text("故事标题") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary
+                    ),
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+                // Description field
                 OutlinedTextField(
                     value = description,
                     onValueChange = onDescriptionChange,
                     label = { Text("故事简介（可选）") },
                     minLines = 2,
                     maxLines = 4,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary
+                    ),
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+                // Template button
                 OutlinedButton(
                     onClick = onUseTemplate,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("从模板创建")
                 }
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = onConfirm,
-                enabled = title.isNotBlank()
+                enabled = title.isNotBlank(),
+                shape = RoundedCornerShape(8.dp)
             ) {
                 Text("创建")
             }
@@ -310,6 +498,8 @@ private fun CreateStoryDialog(
     )
 }
 
+// ─── Template Selection Dialog ───────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TemplateSelectionDialog(
@@ -321,7 +511,14 @@ private fun TemplateSelectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择故事模板") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("📚", fontSize = 18.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("选择故事模板")
+            }
+        },
         text = {
             LazyColumn(
                 modifier = Modifier.heightIn(max = 400.dp),
@@ -330,7 +527,7 @@ private fun TemplateSelectionDialog(
                 genreGroups.forEach { (genre, genreTemplates) ->
                     item {
                         Text(
-                            text = getGenreDisplayName(genre),
+                            text = "— ${getGenreDisplayName(genre)} —",
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -363,7 +560,11 @@ private fun TemplateCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -375,12 +576,13 @@ private fun TemplateCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = template.title,
-                    style = MaterialTheme.typography.titleSmall
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = template.summary,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -389,11 +591,13 @@ private fun TemplateCard(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             )
         }
     }
 }
+
+// ─── Template Detail Dialog ──────────────────────────────────────────────────
 
 @Composable
 private fun TemplateDetailDialog(
@@ -408,10 +612,15 @@ private fun TemplateDetailDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "返回",
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
                 Text("模板详情")
             }
@@ -420,9 +629,11 @@ private fun TemplateDetailDialog(
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
+                // Template title
                 Text(
                     text = template.title,
                     style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -431,31 +642,22 @@ private fun TemplateDetailDialog(
                     label = { Text(getGenreDisplayName(template.genre)) }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // Summary
                 Text(
                     text = template.summary,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Show pre-populated characters
+                // Characters
                 template.charactersJson?.let { charsJson ->
                     if (charsJson.isNotBlank() && charsJson != "null") {
-                        Text(
-                            text = "预设角色",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                        ) {
+                        SectionCard(title = "📋 预设角色") {
                             Text(
                                 text = charsJson,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                                 modifier = Modifier.padding(12.dp)
                             )
                         }
@@ -463,24 +665,13 @@ private fun TemplateDetailDialog(
                     }
                 }
 
-                // Show pre-populated world settings
+                // World settings
                 template.worldSettingsJson?.let { settingsJson ->
                     if (settingsJson.isNotBlank() && settingsJson != "null") {
-                        Text(
-                            text = "预设世界观",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                        ) {
+                        SectionCard(title = "🌍 预设世界观") {
                             Text(
                                 text = settingsJson,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                                 modifier = Modifier.padding(12.dp)
                             )
                         }
@@ -488,17 +679,22 @@ private fun TemplateDetailDialog(
                     }
                 }
 
-                Divider()
+                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Story title and description
+                // Story title and description fields
                 OutlinedTextField(
                     value = title,
                     onValueChange = onTitleChange,
                     label = { Text("故事标题") },
                     placeholder = { Text(template.title) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary
+                    ),
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
@@ -508,12 +704,20 @@ private fun TemplateDetailDialog(
                     placeholder = { Text(template.summary) },
                     minLines = 2,
                     maxLines = 4,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary
+                    ),
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace)
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            Button(
+                onClick = onConfirm,
+                shape = RoundedCornerShape(8.dp)
+            ) {
                 Text("创建故事")
             }
         },
@@ -523,6 +727,30 @@ private fun TemplateDetailDialog(
             }
         }
     )
+}
+
+@Composable
+private fun SectionCard(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+        ) {
+            content()
+        }
+    }
 }
 
 @Composable
