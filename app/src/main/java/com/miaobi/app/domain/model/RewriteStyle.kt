@@ -5,31 +5,38 @@ package com.miaobi.app.domain.model
  */
 enum class RewriteStyle(
     val label: String,
-    val description: String
+    val description: String,
+    val emoji: String
 ) {
     CLASSICAL(
         label = "古风",
-        description = "文言古韵，典雅含蓄"
+        description = "文言古韵，典雅含蓄",
+        emoji = "🏯"
     ),
     MODERN(
         label = "现代",
-        description = "白话流畅，通俗易懂"
+        description = "白话流畅，通俗易懂",
+        emoji = "🏙️"
     ),
     CONCISE(
         label = "简洁",
-        description = "简洁干练，一针见血"
+        description = "简洁干练，一针见血",
+        emoji = "⚡"
     ),
     FLOWERY(
         label = "华丽",
-        description = "辞藻华丽，优美动人"
+        description = "辞藻华丽，优美动人",
+        emoji = "🌸"
     ),
     COLLOQUIAL(
         label = "口语化",
-        description = "自然口语，生动亲切"
+        description = "自然口语，生动亲切",
+        emoji = "💬"
     ),
     LITERARY(
         label = "文艺",
-        description = "文艺清新，诗意盎然"
+        description = "文艺清新，诗意盎然",
+        emoji = "📜"
     );
 
     companion object {

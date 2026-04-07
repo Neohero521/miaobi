@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.dp
 import com.miaobi.app.domain.model.RewriteStyle
 
 /**
- * 5 种写作风格 Tab 行（用于改写风格选择）
- * 与架构文档对齐：古风·现代·简洁·华丽·口语化
+ * 6 种写作风格 Tab 行（用于改写风格选择）
+ * 风格：古风·现代·简洁·华丽·口语化·文艺
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,10 +48,16 @@ fun RewriteStyleTabRow(
                         selected = isSelected,
                         onClick = { if (enabled) onStyleSelected(style) },
                         label = {
-                            Text(
-                                text = style.label,
-                                style = MaterialTheme.typography.labelLarge
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Text(text = style.emoji)
+                                Text(
+                                    text = style.label,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
                         },
                         enabled = enabled,
                         shape = RoundedCornerShape(16.dp),
@@ -67,12 +73,13 @@ fun RewriteStyleTabRow(
 }
 
 /**
- * 与架构文档对齐的 5 种风格
+ * 6 种写作风格
  */
 val WritingStyles = listOf(
     RewriteStyle.CLASSICAL,
     RewriteStyle.MODERN,
     RewriteStyle.CONCISE,
     RewriteStyle.FLOWERY,
-    RewriteStyle.COLLOQUIAL
+    RewriteStyle.COLLOQUIAL,
+    RewriteStyle.LITERARY
 )
