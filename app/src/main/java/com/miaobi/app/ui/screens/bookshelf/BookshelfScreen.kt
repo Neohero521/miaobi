@@ -28,7 +28,8 @@ import java.util.*
 @Composable
 fun BookshelfScreen(
     viewModel: BookshelfViewModel = hiltViewModel(),
-    onStoryClick: (Long) -> Unit
+    onStoryClick: (Long) -> Unit,
+    onSettingsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -40,7 +41,8 @@ fun BookshelfScreen(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                     navigationIconContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                ),
+                onSettingsClick = onSettingsClick
             )
         },
         floatingActionButton = {
@@ -146,7 +148,8 @@ fun BookshelfScreen(
 @Composable
 private fun TypewriterTopAppBar(
     title: String,
-    colors: TopAppBarColors
+    colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
+    onSettingsClick: (() -> Unit)? = null
 ) {
     TopAppBar(
         title = {
@@ -173,6 +176,17 @@ private fun TypewriterTopAppBar(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+        },
+        actions = {
+            if (onSettingsClick != null) {
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "设置",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
             }
         },
         colors = colors

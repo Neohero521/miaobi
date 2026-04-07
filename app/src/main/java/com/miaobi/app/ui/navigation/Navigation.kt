@@ -57,8 +57,7 @@ sealed class Screen(
 }
 
 val bottomNavItems = listOf(
-    Screen.Bookshelf,
-    Screen.Settings
+    Screen.Bookshelf
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,6 +111,9 @@ fun MiaobiNavHost(
                 BookshelfScreen(
                     onStoryClick = { storyId ->
                         navController.navigate(Screen.Writing.createRoute(storyId))
+                    },
+                    onSettingsClick = {
+                        navController.navigate(Screen.Settings.route)
                     }
                 )
             }
