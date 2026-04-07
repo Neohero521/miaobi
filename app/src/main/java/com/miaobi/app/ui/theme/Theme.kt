@@ -14,31 +14,31 @@ import androidx.core.view.WindowCompat
 
 // ─── Typewriter Light Color Scheme ────────────────────────────────────────────
 private val TypewriterLightColorScheme = lightColorScheme(
-    primary = TypewriterAmber,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFF5E6B8),
-    onPrimaryContainer = TypewriterInk,
+    primary = CaiYunPrimary,  // 彩云橙
+    onPrimary = CaiYunOnPrimary,
+    primaryContainer = Color(0xFFFFF3DB),
+    onPrimaryContainer = CaiYunTextPrimary,
 
-    secondary = TypewriterGold,
+    secondary = CaiYunSecondary,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE8D5A0),
-    onSecondaryContainer = TypewriterInk,
+    secondaryContainer = Color(0xFFE8E8E8),
+    onSecondaryContainer = CaiYunTextPrimary,
 
-    tertiary = TypewriterRust,
+    tertiary = CaiYunAccent,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFDAD4),
-    onTertiaryContainer = TypewriterInk,
+    tertiaryContainer = Color(0xFFFFE5E3),
+    onTertiaryContainer = CaiYunTextPrimary,
 
-    background = TypewriterCream,
-    onBackground = TypewriterInk,
+    background = CaiYunBackground,
+    onBackground = CaiYunTextPrimary,
 
-    surface = TypewriterPaper,
-    onSurface = TypewriterInk,
-    surfaceVariant = TypewriterSurface,
-    onSurfaceVariant = TypewriterFaded,
+    surface = CaiYunSurface,
+    onSurface = CaiYunTextPrimary,
+    surfaceVariant = Color(0xFFEEEEEE),
+    onSurfaceVariant = CaiYunTextSecondary,
 
-    outline = TypewriterHint,
-    outlineVariant = Color(0xFFD4C9B8),
+    outline = Color(0xFFCCCCCC),
+    outlineVariant = Color(0xFFE0E0E0),
 
     error = Error,
     onError = Color.White,
@@ -48,47 +48,47 @@ private val TypewriterLightColorScheme = lightColorScheme(
     // Extra for typewriter aesthetic
     inverseSurface = TypewriterNight,
     inverseOnSurface = TypewriterInkLight,
-    inversePrimary = TypewriterAmberDark,
-    surfaceTint = TypewriterAmber,
+    inversePrimary = CaiYunPrimaryDark,
+    surfaceTint = CaiYunPrimary,
 )
 
 // ─── Typewriter Dark Color Scheme ─────────────────────────────────────────────
 private val TypewriterDarkColorScheme = darkColorScheme(
-    primary = TypewriterAmberDark,
-    onPrimary = Color(0xFF3D2E00),
-    primaryContainer = Color(0xFF584400),
-    onPrimaryContainer = Color(0xFFE8C84A),
+    primary = CaiYunPrimary,
+    onPrimary = Color.White,
+    primaryContainer = CaiYunPrimaryDark,
+    onPrimaryContainer = Color.White,
 
-    secondary = Color(0xFFD4B96A),
-    onSecondary = Color(0xFF3D3000),
-    secondaryContainer = Color(0xFF574600),
-    onSecondaryContainer = Color(0xFFF2E2A0),
+    secondary = Color(0xFF2A2A2A),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF3A3A3A),
+    onSecondaryContainer = Color.White,
 
-    tertiary = Color(0xFFFFB4A9),
-    onTertiary = Color(0xFF5F1111),
-    tertiaryContainer = Color(0xFF7E2721),
-    onTertiaryContainer = Color(0xFFFFDAD4),
+    tertiary = CaiYunAccent,
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFF8B2323),
+    onTertiaryContainer = Color.White,
 
-    background = TypewriterNight,
-    onBackground = TypewriterInkLight,
+    background = Color(0xFF121212),
+    onBackground = Color.White,
 
-    surface = TypewriterNightPaper,
-    onSurface = TypewriterInkLight,
-    surfaceVariant = TypewriterNightSurface,
-    onSurfaceVariant = Color(0xFFD0C5B0),
+    surface = Color(0xFF1E1E1E),
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF2A2A2A),
+    onSurfaceVariant = Color(0xFFAAAAAA),
 
-    outline = Color(0xFF9A9080),
-    outlineVariant = Color(0xFF4E4840),
+    outline = Color(0xFF555555),
+    outlineVariant = Color(0xFF3A3A3A),
 
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690003),
     errorContainer = Color(0xFF930006),
     onErrorContainer = Color(0xFFFFDAD6),
 
-    inverseSurface = TypewriterCream,
-    inverseOnSurface = TypewriterInk,
-    inversePrimary = TypewriterAmber,
-    surfaceTint = TypewriterAmberDark,
+    inverseSurface = Color(0xFFE0E0E0),
+    inverseOnSurface = Color(0xFF1E1E1E),
+    inversePrimary = CaiYunPrimaryDark,
+    surfaceTint = CaiYunPrimary,
 )
 
 // ─── Theme ─────────────────────────────────────────────────────────────────────

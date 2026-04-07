@@ -55,6 +55,17 @@ val TextPrimary = Color(0xFF2C2416)
 val TextSecondary = Color(0xFF7A6F5D)
 val TextHint = Color(0xFFAA9E8A)
 
+// ─── CaiYun Style Colors (彩云小梦风格) ───────────────────────────────────────
+val CaiYunPrimary = Color(0xFFF5A623)       // 主色调 - 橙色
+val CaiYunPrimaryDark = Color(0xFFD68910)   // 主色深
+val CaiYunSecondary = Color(0xFF1A1A1A)     // 次要色 - 深灰色
+val CaiYunBackground = Color(0xFFFFFFFF)     // 背景色 - 白色
+val CaiYunSurface = Color(0xFFF5F5F5)       // 表面色 - 浅灰色
+val CaiYunTextPrimary = Color(0xFF1A1A1A)   // 主要文字颜色
+val CaiYunTextSecondary = Color(0xFF666666) // 次要文字颜色
+val CaiYunAccent = Color(0xFFE74C3C)        // 强调色 - 红色
+val CaiYunOnPrimary = Color.White           // 主色上文字
+
 // ─── Semantic ─────────────────────────────────────────────────────────────────
 val Success = Color(0xFF4CAF50)
 val Error = Color(0xFFE53935)
