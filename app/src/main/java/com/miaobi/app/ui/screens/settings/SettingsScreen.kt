@@ -325,6 +325,49 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            // ── 最近更新 ──────────────────────────────────────────────────────
+            TypewriterSectionHeader(title = "📝 最近更新")
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "v1.0.1",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val updates = listOf(
+                        "✨ 书架显示总字数统计",
+                        "🎨 6种写作风格 emoji 化",
+                        "🤖 AI 续写显示三个方向标签",
+                        "📖 工具栏新增人物/世界设定快捷入口",
+                        "⚙️ 简化导航，设置移至顶部",
+                        "🐛 修复多项 bug"
+                    )
+                    updates.forEach { update ->
+                        Text(
+                            text = update,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
