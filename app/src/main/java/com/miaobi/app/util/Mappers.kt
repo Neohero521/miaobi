@@ -10,6 +10,7 @@ fun StoryEntity.toDomain(): Story = Story(
     description = description,
     templateType = templateType,
     coverImage = coverImage,
+    wordCount = wordCount,
     createdAt = createdAt,
     updatedAt = updatedAt
 )
@@ -20,6 +21,7 @@ fun Story.toEntity(): StoryEntity = StoryEntity(
     description = description,
     templateType = templateType,
     coverImage = coverImage,
+    wordCount = wordCount,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

@@ -9,8 +9,9 @@ data class StoryEntity(
     val id: Long = 0,
     val title: String,
     val description: String,
-    val templateType: String = "free", // free, romance, fantasy, sci-fi, mystery
+    val templateType: String = "free",
     val coverImage: String? = null,
+    val wordCount: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
