@@ -193,6 +193,14 @@ class BookshelfViewModel @Inject constructor(
             )
             val storyId = storyRepository.insertStory(story)
 
+            // 自动创建第一章（与createStory保持一致）
+            try {
+                val chapter = Chapter(storyId = storyId, title = "第一章", content = "", orderIndex = 0)
+                chapterRepository.insertChapter(chapter)
+            } catch (e: Exception) {
+                // 章节创建失败不影响故事创建
+            }
+
             // Create characters from template
             template.charactersJson?.let { charsJson ->
                 if (charsJson.isNotBlank()) {
