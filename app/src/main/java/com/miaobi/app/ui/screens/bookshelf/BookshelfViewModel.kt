@@ -158,27 +158,29 @@ class BookshelfViewModel @Inject constructor(
 
     private fun createStory(title: String, description: String, templateType: String) {
         viewModelScope.launch {
-            val story = Story(
-                title = title.ifBlank { "无标题故事" },
-                description = description,
-                templateType = templateType
-            )
-            val storyId = storyRepository.insertStory(story)
-            // 自动创建第一章，避免打开 WritingScreen 时无章节导致问题
-            val chapter = Chapter(
-                storyId = storyId,
-                title = "第一章",
-                content = "",
-                orderIndex = 0
-            )
             try {
+                val story = Story(
+                    title = title.ifBlank { "无标题故事" },
+                    description = description,
+                    templateType = templateType
+                )
+                val storyId = storyRepository.insertStory(story)
+                // 自动创建第一章，避免打开 WritingScreen 时无章节导致问题
+                val chapter = Chapter(
+                    storyId = storyId,
+                    title = "第一章",
+                    content = "",
+                    orderIndex = 0
+                )
                 chapterRepository.insertChapter(chapter)
+                _uiState.update {
+                    it.copy(showCreateDialog = false, newStoryTitle = "", newStoryDescription = "", selectedTemplate = null)
+                }
             } catch (e: Exception) {
-                // 章节创建失败不影响故事创建，只记录日志
                 e.printStackTrace()
-            }
-            _uiState.update {
-                it.copy(showCreateDialog = false, newStoryTitle = "", newStoryDescription = "", selectedTemplate = null)
+                _uiState.update {
+                    it.copy(showCreateDialog = false)
+                }
             }
         }
     }
