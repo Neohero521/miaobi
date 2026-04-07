@@ -75,13 +75,24 @@ fun BookshelfScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
-                StoryList(
-                    stories = uiState.stories,
-                    onStoryClick = onStoryClick,
-                    onDeleteClick = { storyId ->
-                        viewModel.onEvent(BookshelfEvent.DeleteStory(storyId))
-                    }
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    // 写作统计概览
+                    WritingStatsCard(storyCount = uiState.stories.size)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    // 故事列表
+                    StoryList(
+                        stories = uiState.stories,
+                        onStoryClick = onStoryClick,
+                        onDeleteClick = { storyId ->
+                            viewModel.onEvent(BookshelfEvent.DeleteStory(storyId))
+                        }
+                    )
+                }
             }
         }
 
@@ -204,6 +215,85 @@ private fun EmptyBookshelf(modifier: Modifier = Modifier) {
 }
 
 // ─── Story List ───────────────────────────────────────────────────────────────
+
+// ─── Writing Stats Overview ──────────────────────────────────────────────
+
+@Composable
+private fun WritingStatsCard(storyCount: Int) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 故事数
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "📚",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "$storyCount",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "故事",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+
+            Divider(
+                modifier = Modifier
+                    .height(48.dp)
+                    .width(1.dp),
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
+
+            // 激励文字
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "✍️",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = when {
+                        storyCount == 0 -> "开始创作"
+                        storyCount < 3 -> "继续加油"
+                        storyCount < 10 -> "创作达人"
+                        else -> "写作大神"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = when {
+                        storyCount == 0 -> "写下第一个故事"
+                        storyCount < 3 -> "更多故事等你探索"
+                        storyCount < 10 -> "潜力无限"
+                        else -> "笔耕不辍"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun StoryList(
