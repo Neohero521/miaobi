@@ -2,6 +2,7 @@ package com.miaobi.app.di
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.miaobi.app.BuildConfig
 import com.miaobi.app.data.remote.AiApiService
 import dagger.Module
 import dagger.Provides
@@ -30,7 +31,11 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         return OkHttpClient.Builder()
@@ -45,7 +50,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://api.siliconflow.cn/v1/")
+            .baseUrl("https://api.siliconflow.cn/v1")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
