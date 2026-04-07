@@ -20,6 +20,8 @@ data class BranchOption(
  */
 data class MultiBranchState(
     val branchCount: Int = 3,
+    val style: String = "标准",  // 续写风格: 标准/言情/玄幻/纯爱/脑洞大开/细节狂魔
+    val length: Int = 1000,       // 续写长度: 200/500/1000/2000/5000
     val branches: List<BranchOption> = emptyList(),
     val selectedBranchIndex: Int = -1,
     val isGenerating: Boolean = false,

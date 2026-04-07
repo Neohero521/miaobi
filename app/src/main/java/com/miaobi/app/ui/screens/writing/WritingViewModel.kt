@@ -163,6 +163,8 @@ sealed class WritingEvent {
     // Multi-branch
     object ToggleMultiBranchSheet : WritingEvent()
     data class UpdateBranchCount(val count: Int) : WritingEvent()
+    data class UpdateBranchStyle(val style: String) : WritingEvent()
+    data class UpdateBranchLength(val length: Int) : WritingEvent()
     object GenerateBranches : WritingEvent()
     object CancelBranches : WritingEvent()
     data class SelectBranch(val index: Int) : WritingEvent()
@@ -651,13 +653,29 @@ class WritingViewModel @Inject constructor(
                 }
             }
 
+            is WritingEvent.UpdateBranchStyle -> {
+                _uiState.update {
+                    it.copy(multiBranchState = it.multiBranchState.copy(style = event.style))
+                }
+            }
+
+            is WritingEvent.UpdateBranchLength -> {
+                _uiState.update {
+                    it.copy(multiBranchState = it.multiBranchState.copy(length = event.length))
+                }
+            }
+
             WritingEvent.GenerateBranches -> generateBranches()
 
             WritingEvent.CancelBranches -> {
                 multiBranchJob?.cancel()
                 _uiState.update {
                     it.copy(
-                        multiBranchState = MultiBranchState(branchCount = it.multiBranchState.branchCount),
+                        multiBranchState = MultiBranchState(
+                            branchCount = it.multiBranchState.branchCount,
+                            style = it.multiBranchState.style,
+                            length = it.multiBranchState.length
+                        ),
                         isGenerating = false
                     )
                 }
@@ -686,7 +704,11 @@ class WritingViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         showMultiBranchSheet = false,
-                        multiBranchState = MultiBranchState(branchCount = it.multiBranchState.branchCount)
+                        multiBranchState = MultiBranchState(
+                            branchCount = it.multiBranchState.branchCount,
+                            style = it.multiBranchState.style,
+                            length = it.multiBranchState.length
+                        )
                     )
                 }
             }
@@ -1074,7 +1096,11 @@ class WritingViewModel @Inject constructor(
                 content = newContent,
                 currentChapter = updatedChapter,
                 showMultiBranchSheet = false,
-                multiBranchState = MultiBranchState(branchCount = it.multiBranchState.branchCount),
+                multiBranchState = MultiBranchState(
+                    branchCount = it.multiBranchState.branchCount,
+                    style = it.multiBranchState.style,
+                    length = it.multiBranchState.length
+                ),
                 userPrompt = ""
             )
         }

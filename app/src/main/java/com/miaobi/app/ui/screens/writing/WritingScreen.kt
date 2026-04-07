@@ -339,6 +339,8 @@ fun WritingScreen(
     if (uiState.showMultiBranchSheet) MultiBranchBottomSheet(
         multiBranchState = uiState.multiBranchState,
         onCountChanged = { viewModel.onEvent(WritingEvent.UpdateBranchCount(it)) },
+        onStyleChanged = { viewModel.onEvent(WritingEvent.UpdateBranchStyle(it)) },
+        onLengthChanged = { viewModel.onEvent(WritingEvent.UpdateBranchLength(it)) },
         onGenerate = { viewModel.onEvent(WritingEvent.GenerateBranches) },
         onCancel = { viewModel.onEvent(WritingEvent.CancelBranches) },
         onBranchSelected = { viewModel.onEvent(WritingEvent.SelectBranch(it)) },

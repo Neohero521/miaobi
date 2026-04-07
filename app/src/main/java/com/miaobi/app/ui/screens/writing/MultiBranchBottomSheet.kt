@@ -26,6 +26,8 @@ import com.miaobi.app.domain.model.MultiBranchState
 fun MultiBranchBottomSheet(
     multiBranchState: MultiBranchState,
     onCountChanged: (Int) -> Unit,
+    onStyleChanged: (String) -> Unit,
+    onLengthChanged: (Int) -> Unit,
     onGenerate: () -> Unit,
     onCancel: () -> Unit,
     onBranchSelected: (Int) -> Unit,
@@ -63,6 +65,33 @@ fun MultiBranchBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (!multiBranchState.isGenerating && multiBranchState.branches.isEmpty()) {
+                // 风格选择
+                Text(
+                    text = "续写风格",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                StyleSelector(
+                    selectedStyle = multiBranchState.style,
+                    onStyleSelected = onStyleChanged
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 续写长度选择
+                Text(
+                    text = "续写长度",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LengthSelector(
+                    selectedLength = multiBranchState.length,
+                    onLengthSelected = onLengthChanged
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 分支数量选择
                 Text(
                     text = "选择分支数量",
                     style = MaterialTheme.typography.labelMedium,
@@ -196,6 +225,50 @@ private fun BranchCountSelector(
                 selected = isSelected,
                 onClick = { onCountSelected(count) },
                 label = { Text("$count 条") },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StyleSelector(
+    selectedStyle: String,
+    onStyleSelected: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        listOf("标准", "言情", "玄幻", "纯爱", "脑洞大开", "细节狂魔").forEach { style ->
+            val isSelected = style == selectedStyle
+            FilterChip(
+                selected = isSelected,
+                onClick = { onStyleSelected(style) },
+                label = { Text(style, style = MaterialTheme.typography.labelSmall) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LengthSelector(
+    selectedLength: Int,
+    onLengthSelected: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(200, 500, 1000, 2000, 5000).forEach { length ->
+            val isSelected = length == selectedLength
+            FilterChip(
+                selected = isSelected,
+                onClick = { onLengthSelected(length) },
+                label = { Text("${length}字", style = MaterialTheme.typography.labelSmall) },
                 modifier = Modifier.weight(1f)
             )
         }
