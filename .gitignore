@@ -1,0 +1,27 @@
+# Gradle
+.gradle/
+build/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Android Studio
+.idea/
+*.iml
+local.properties
+*.log
+
+# Keystore
+*.keystore
+*.jks
+
+# Temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OpenClaw
+.openclaw/

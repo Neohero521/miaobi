@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">妙笔</string>
+    <string name="bookshelf">书架</string>
+    <string name="writing">写小说</string>
+    <string name="settings">设置</string>
+    <string name="create_story">创建故事</string>
+    <string name="story_title">故事标题</string>
+    <string name="story_description">故事简介</string>
+    <string name="characters">角色设定</string>
+    <string name="world_settings">世界观设定</string>
+    <string name="chapters">章节</string>
+    <string name="ai_continue">AI续写</string>
+    <string name="save">保存</string>
+    <string name="export">导出</string>
+    <string name="api_key">API Key</string>
+    <string name="api_url">API 地址</string>
+    <string name="model_name">模型名称</string>
+    <string name="thinking">思考中...</string>
+    <string name="generating">生成中...</string>
+    <string name="no_stories">暂无故事，点击右下角创建</string>
+    <string name="no_chapters">暂无章节</string>
+    <string name="add_character">添加角色</string>
+    <string name="add_world_setting">添加世界观</string>
+    <string name="character_name">角色名</string>
+    <string name="character_description">角色描述</string>
+    <string name="world_setting_name">设定名称</string>
+    <string name="world_setting_content">设定内容</string>
+    <string name="confirm">确认</string>
+    <string name="cancel">取消</string>
+    <string name="delete">删除</string>
+    <string name="edit">编辑</string>
+    <string name="history_versions">历史版本</string>
+    <string name="export_success">导出成功</string>
+    <string name="export_failed">导出失败</string>
+    <string name="enter_content">输入内容...</string>
+    <string name="continue_story">续写内容...</string>
+</resources>
