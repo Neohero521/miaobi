@@ -42,6 +42,7 @@ sealed class BookshelfEvent {
 @HiltViewModel
 class BookshelfViewModel @Inject constructor(
     private val storyRepository: StoryRepository,
+    private val chapterRepository: ChapterRepository,
     private val characterRepository: CharacterRepository,
     private val worldSettingRepository: WorldSettingRepository,
     private val storyTemplateRepository: StoryTemplateRepository
@@ -162,7 +163,20 @@ class BookshelfViewModel @Inject constructor(
                 description = description,
                 templateType = templateType
             )
-            storyRepository.insertStory(story)
+            val storyId = storyRepository.insertStory(story)
+            // 自动创建第一章，避免打开 WritingScreen 时无章节导致问题
+            val chapter = Chapter(
+                storyId = storyId,
+                title = "第一章",
+                content = "",
+                orderIndex = 0
+            )
+            try {
+                chapterRepository.insertChapter(chapter)
+            } catch (e: Exception) {
+                // 章节创建失败不影响故事创建，只记录日志
+                e.printStackTrace()
+            }
             _uiState.update {
                 it.copy(showCreateDialog = false, newStoryTitle = "", newStoryDescription = "", selectedTemplate = null)
             }

@@ -824,10 +824,34 @@ class WritingViewModel @Inject constructor(
     }
 
     /**
-     * 将累积的续写内容拆分为 3 条建议
+     * 将累积的续写内容拆分为 3 条独立方向的建议
+     * 优先解析 AI 返回的 `===方向X===` 分隔符；若无分隔符则均分内容。
      */
     private fun splitIntoSuggestions(content: String): List<ContinuationSuggestion> {
         if (content.isBlank()) return emptyList()
+
+        // 尝试按方向标记分割
+        val directionRegex = Regex("""===方向(\d+)===""")
+        val parts = content.split(directionRegex)
+
+        // parts[0] 是方向1之前的内容，parts[1]是方向1的内容，parts[2]是方向2的内容...
+        // 正则 split 的结果是：["", "方向1内容", "方向2内容", "方向3内容"]
+        if (parts.size >= 4) {
+            // parts[0] 为空串（方向标记前的空内容），从 parts[1] 开始是实际内容
+            val suggestions = listOf(1, 2, 3).mapNotNull { index ->
+                val partContent = parts.getOrNull(index)?.trim() ?: return@mapNotNull null
+                if (partContent.isBlank()) return@mapNotNull null
+                ContinuationSuggestion(
+                    id = index - 1,
+                    content = partContent,
+                    wordCount = partContent.length,
+                    isSelected = index == 1
+                )
+            }
+            if (suggestions.isNotEmpty()) return suggestions
+        }
+
+        // 回退：均分内容为3段（保持向后兼容）
         val totalLength = content.length
         val partSize = totalLength / 3
 
