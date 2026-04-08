@@ -19,7 +19,9 @@
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.妙笔"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize|stateHidden"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout"
+            android:hardwareAccelerated="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -46,6 +46,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WritingScreen(
@@ -515,6 +516,9 @@ private fun WritingContent(
     // Keep callback reference stable
     val onTextSelectedRef by rememberUpdatedState(onTextSelected)
 
+    // 软键盘高度状态，用于调整底部留白
+    var keyboardHeight by remember { mutableIntStateOf(0) }
+
     // Sync external content changes into TextFieldValue
     LaunchedEffect(content) {
         if (textFieldValue.text != content) {
@@ -526,6 +530,8 @@ private fun WritingContent(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .imePadding() // 软键盘弹出时自动调整底部padding
+            .navigationBarsPadding() // 适配导航栏
     ) {
         SelectionContainer {
             BasicTextField(
@@ -554,7 +560,8 @@ private fun WritingContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(bottom = 48.dp), // 确保最后一行不被键盘遮挡
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground,
                     fontFamily = FontFamily.SansSerif,
@@ -587,6 +594,9 @@ private fun WritingContent(
                         }
                         innerTextField()
                     }
+                },
+                onTextLayout = { _ ->
+                    // 光标位置自动滚动逻辑已简化
                 }
             )
         }
