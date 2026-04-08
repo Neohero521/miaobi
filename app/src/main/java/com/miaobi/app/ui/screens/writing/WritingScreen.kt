@@ -67,6 +67,10 @@ fun WritingScreen(
     var selectionToolbarVisible by remember { mutableStateOf(false) }
     var selectedTextForToolbar by remember { mutableStateOf("") }
 
+    // ── AI 菜单状态 ────────────────────────────────────────────────────────
+    var showAiMenu by remember { mutableStateOf(false) }
+    var selectedWriteType by remember { mutableStateOf(WriteType.CONTINUE) }
+
     // ── Auto-save timer (every 30 seconds) ────────────────────────────────────
     var lastAutoSaveTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var isSaving by remember { mutableStateOf(false) }
@@ -119,7 +123,9 @@ fun WritingScreen(
                 isSaving = isSaving,
                 lastSaveTime = uiState.currentChapter?.updatedAt,
                 hasUnsavedChanges = uiState.content.isNotBlank(),
-                saveError = uiState.error
+                saveError = uiState.error,
+                lengthOption = uiState.lengthOption,
+                onLengthOptionChange = { viewModel.onEvent(WritingEvent.UpdateLengthOption(it)) }
             )
         }
     ) { padding ->
@@ -142,7 +148,11 @@ fun WritingScreen(
             }
 
             // ── Main writing area ─────────────────────────────────────────────
-            Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .imePadding()
+            ) {
                 when {
                     uiState.isLoading -> CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center)
@@ -183,58 +193,49 @@ fun WritingScreen(
                     )
                 }
 
-                // ── Floating AI Button ─────────────────────────────────────────
-                FloatingAiButton(
+                // ── 彩云小梦风格底部栏 ─────────────────────────────────────────
+                BottomInputBar(
                     isGenerating = uiState.isGenerating,
-                    onClick = {
+                    prompt = uiState.userPrompt,
+                    onPromptChange = { viewModel.onEvent(WritingEvent.UpdatePrompt(it)) },
+                    onGenerate = {
                         if (uiState.isGenerating) {
                             viewModel.onEvent(WritingEvent.CancelGeneration)
                         } else {
                             viewModel.onEvent(WritingEvent.GenerateContinue)
                         }
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(
-                            end = 16.dp,
-                            bottom = 72.dp
-                        )
+                    onExpandClick = { showAiMenu = !showAiMenu },
+                    isExpanded = showAiMenu,
+                    onDismissExpand = { showAiMenu = false },
+                    showRewriteStyleRow = uiState.showRewriteStyleRow,
+                    selectedStyle = uiState.selectedStyle,
+                    onRewrite = {
+                        if (uiState.content.isNotBlank()) {
+                            viewModel.onEvent(WritingEvent.TriggerRewrite(uiState.content))
+                            viewModel.onEvent(WritingEvent.ToggleRewriteStyleRow)
+                        }
+                        showAiMenu = false
+                    },
+                    onExpand = {
+                        viewModel.onEvent(WritingEvent.UpdatePrompt("扩写："))
+                        viewModel.onEvent(WritingEvent.GenerateContinue)
+                    },
+                    onShrink = {
+                        viewModel.onEvent(WritingEvent.UpdatePrompt("缩写："))
+                        viewModel.onEvent(WritingEvent.GenerateContinue)
+                    },
+                    selectedWriteType = selectedWriteType,
+                    onWriteTypeSelected = { selectedWriteType = it },
+                    selectedWriteStyle = uiState.selectedWriteStyle,
+                    onWriteStyleSelected = { viewModel.onEvent(WritingEvent.SelectWriteStyle(it)) },
+                    canUndo = uiState.undoStack.isNotEmpty(),
+                    canRedo = uiState.redoStack.isNotEmpty(),
+                    onUndo = { viewModel.onEvent(WritingEvent.Undo) },
+                    onRedo = { viewModel.onEvent(WritingEvent.Redo) },
+                    modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }
-
-            // ── 彩云小梦风格编辑面板 ─────────────────────────────────────────
-            CaiyunEditorPanel(
-                editorText = uiState.content,
-                userPrompt = uiState.userPrompt,
-                lengthOption = uiState.lengthOption,
-                isGenerating = uiState.isGenerating,
-                canUndo = uiState.undoStack.isNotEmpty(),
-                canRedo = uiState.redoStack.isNotEmpty(),
-                onContentChange = { viewModel.onEvent(WritingEvent.UpdateContent(it)) },
-                onPromptChange = { viewModel.onEvent(WritingEvent.UpdatePrompt(it)) },
-                onLengthChange = { viewModel.onEvent(WritingEvent.UpdateLengthOption(it)) },
-                onUndo = { viewModel.onEvent(WritingEvent.Undo) },
-                onRedo = { viewModel.onEvent(WritingEvent.Redo) },
-                onPolish = { viewModel.onEvent(WritingEvent.Polish) },
-                onRewrite = {
-                    if (uiState.content.isNotBlank()) {
-                        viewModel.onEvent(WritingEvent.TriggerRewrite(uiState.content))
-                        viewModel.onEvent(WritingEvent.ToggleRewriteStyleRow)
-                    }
-                },
-                onInspiration = { viewModel.onEvent(WritingEvent.ToggleInspirationSheet) },
-                onCharacter = { viewModel.onEvent(WritingEvent.ToggleCharacterSheet) },
-                onWorld = { viewModel.onEvent(WritingEvent.ToggleWorldSettingSheet) },
-                onHistory = { viewModel.onEvent(WritingEvent.ToggleDraftHistory) },
-                onBranch = { viewModel.onEvent(WritingEvent.ToggleMultiBranchSheet) },
-                onSave = { viewModel.onEvent(WritingEvent.SaveContent) },
-                onContinue = { viewModel.onEvent(WritingEvent.GenerateContinue) },
-                onCharacterClick = { viewModel.onEvent(WritingEvent.ToggleCharacterSheet) },
-                onWorldClick = { viewModel.onEvent(WritingEvent.ToggleWorldSettingSheet) },
-                onHistoryClick = { viewModel.onEvent(WritingEvent.ToggleDraftHistory) },
-                onBranchClick = { viewModel.onEvent(WritingEvent.ToggleMultiBranchSheet) },
-                onSaveClick = { viewModel.onEvent(WritingEvent.SaveContent) }
-            )
         }
     }
 
@@ -386,9 +387,13 @@ private fun WritingTopBar(
     isSaving: Boolean,
     lastSaveTime: Long?,
     hasUnsavedChanges: Boolean,
-    saveError: String?
+    saveError: String?,
+    // 新增：字数选择
+    lengthOption: com.miaobi.app.domain.model.LengthOption,
+    onLengthOptionChange: (com.miaobi.app.domain.model.LengthOption) -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    var settingsExpanded by remember { mutableStateOf(false) }
 
     AnimatedVisibility(
         visible = !isImmersiveMode,
@@ -418,14 +423,6 @@ private fun WritingTopBar(
                                 )
                             }
                         }
-                        // Auto-save status indicator
-                        SaveStatusIndicator(
-                            isSaving = isSaving,
-                            lastSaveTime = lastSaveTime,
-                            hasUnsavedChanges = hasUnsavedChanges,
-                            error = saveError,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
                     }
                 }
             },
@@ -439,55 +436,52 @@ private fun WritingTopBar(
                 }
             },
             actions = {
-                // V/O mode toggle
-                VoModeToggle(
-                    isVoMode = isVoMode,
-                    onToggle = { onToggleVoMode() }
-                )
-
-                // Immersive mode
-                IconButton(onClick = onToggleImmersive) {
-                    Icon(Icons.Default.Fullscreen, contentDescription = "沉浸模式")
-                }
-
-                // Primary action — chapter list
-                IconButton(onClick = onChapterList) {
-                    Icon(Icons.Default.List, contentDescription = "章节")
-                }
-
-                // More menu
+                // 设置按钮 - 字数选择
                 Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                    IconButton(onClick = { settingsExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "设置",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                     DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
+                        expanded = settingsExpanded,
+                        onDismissRequest = { settingsExpanded = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("角色设定") },
-                            onClick = { menuExpanded = false; onCharacter() },
-                            leadingIcon = { Icon(Icons.Default.Person, null) }
+                        Text(
+                            text = "续写字数",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
-                        DropdownMenuItem(
-                            text = { Text("世界观设定") },
-                            onClick = { menuExpanded = false; onWorldSetting() },
-                            leadingIcon = { Icon(Icons.Default.Public, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("灵感") },
-                            onClick = { menuExpanded = false; onInspiration() },
-                            leadingIcon = { Icon(Icons.Default.Lightbulb, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("多分支续写") },
-                            onClick = { menuExpanded = false; onMultiBranch() },
-                            leadingIcon = { Icon(Icons.Default.AccountTree, null) }
-                        )
+                        com.miaobi.app.domain.model.LengthOption.entries.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option.label) },
+                                onClick = {
+                                    onLengthOptionChange(option)
+                                    settingsExpanded = false
+                                },
+                                trailingIcon = {
+                                    if (option == lengthOption) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            )
+                        }
                         Divider()
                         DropdownMenuItem(
+                            text = { Text("章节列表") },
+                            onClick = { onChapterList(); settingsExpanded = false },
+                            leadingIcon = { Icon(Icons.Default.List, null) }
+                        )
+                        DropdownMenuItem(
                             text = { Text("导出 TXT") },
-                            onClick = { menuExpanded = false; onExport() },
+                            onClick = { onExport(); settingsExpanded = false },
                             leadingIcon = { Icon(Icons.Default.FileDownload, null) }
                         )
                     }
@@ -512,8 +506,7 @@ private fun WritingContent(
     onTextSelected: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
-    // 使用 remember 而不是 remember(content)，避免 content 变化时重建 TextFieldValue 导致光标跳到开头
-    var textFieldValue by remember {
+    var textFieldValue by remember(content) {
         mutableStateOf(TextFieldValue(content))
     }
     var lastSelection by remember { mutableStateOf<TextRange?>(null) }
@@ -522,13 +515,10 @@ private fun WritingContent(
     // Keep callback reference stable
     val onTextSelectedRef by rememberUpdatedState(onTextSelected)
 
-    // Sync external content changes into TextFieldValue, preserving cursor position
+    // Sync external content changes into TextFieldValue
     LaunchedEffect(content) {
         if (textFieldValue.text != content) {
-            // 保留光标位置，避免跳到开头
-            val oldCursorPos = textFieldValue.selection.min
-            val newCursorPos = oldCursorPos.coerceIn(0, content.length)
-            textFieldValue = TextFieldValue(content, TextRange(newCursorPos))
+            textFieldValue = TextFieldValue(content)
         }
     }
 
@@ -565,27 +555,35 @@ private fun WritingContent(
                     .fillMaxSize()
                     .verticalScroll(scrollState)
                     .padding(horizontal = 20.dp, vertical = 16.dp),
-                maxLines = Int.MAX_VALUE,
-                singleLine = false,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 17.sp,
-                    lineHeight = 30.sp,
-                    letterSpacing = 0.3.sp
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 16.sp,
+                    lineHeight = 32.sp,
+                    letterSpacing = 0.2.sp
                 ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                cursorBrush = SolidColor(Color(0xFFFF6B6B)),
                 decorationBox = { innerTextField ->
                     Box {
                         if (textFieldValue.text.isEmpty()) {
-                            Text(
-                                text = "在此处开始写作...",
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 17.sp
+                            Column {
+                                Text(
+                                    text = "在此处开始写作...",
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f),
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontSize = 16.sp
+                                    )
                                 )
-                            )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "点击屏幕下方的菱形按钮使用AI续写功能",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                        fontSize = 12.sp
+                                    )
+                                )
+                            }
                         }
                         innerTextField()
                     }

@@ -58,6 +58,7 @@ data class EditorUiState(
     val isImmersiveMode: Boolean = false,
     val showToolbar: Boolean = true,
     val isVoMode: Boolean = true,  // Voice / Original 模式切换
+    val selectedWriteStyle: WriteStyle = WriteStyle.STANDARD,  // 续写风格
 )
 
 // ─── 故事数据 State ──────────────────────────────────────────────────────────

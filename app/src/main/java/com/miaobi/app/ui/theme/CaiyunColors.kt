@@ -18,8 +18,8 @@ object CaiyunColors {
 
     // 文字颜色
     val TextPrimary = Color(0xFF1A1A1A)     // 主要文字 - 深黑
-    val TextSecondary = Color(0xFF666666)   // 次要文字 - 灰色
-    val TextHint = Color(0xFF999999)       // 提示文字 - 浅灰
+    val TextSecondary = Color(0xFF555555)   // 次要文字 - 灰色 (4.5:1+ contrast)
+    val TextHint = Color(0xFF757575)       // 提示文字 - 浅灰 (4.5:1+ contrast)
     val TextWhite = Color(0xFFFFFFFF)       // 白色文字
 
     // 按钮状态

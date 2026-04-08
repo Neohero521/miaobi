@@ -44,6 +44,8 @@ data class WritingUiState(
     // === 新增：Rewrite 风格 Tab ===
     val showRewriteStyleRow: Boolean = false,
     val selectedStyle: RewriteStyle = RewriteStyle.MODERN,
+    val selectedWriteStyle: WriteStyle = WriteStyle.STANDARD,  // 续写风格
+
 
     // === 新增：V/O 模式 ===
     val isVoMode: Boolean = true,
@@ -105,6 +107,7 @@ sealed class WritingEvent {
     object ToggleRewriteStyleRow : WritingEvent()
     object Polish : WritingEvent()
     data class SelectStyle(val style: RewriteStyle) : WritingEvent()
+    data class SelectWriteStyle(val style: WriteStyle) : WritingEvent()
 
     // === 新增：V/O 模式 ===
     object ToggleVoMode : WritingEvent()
@@ -364,6 +367,10 @@ class WritingViewModel @Inject constructor(
 
             is WritingEvent.SelectStyle -> {
                 _uiState.update { it.copy(selectedStyle = event.style) }
+            }
+
+            is WritingEvent.SelectWriteStyle -> {
+                _uiState.update { it.copy(selectedWriteStyle = event.style) }
             }
 
             WritingEvent.Polish -> {

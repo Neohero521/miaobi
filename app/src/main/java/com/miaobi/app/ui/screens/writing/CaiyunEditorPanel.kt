@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -272,7 +273,9 @@ private fun EditorTabItem(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }
+        modifier = Modifier
+            .clickable { onClick() }
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
     ) {
         Icon(
             imageVector = icon,
@@ -306,7 +309,13 @@ private fun LengthBtnItem(
                 color = if (isSelected) Color.Transparent else CaiyunColors.Divider,
                 shape = RoundedCornerShape(CaiyunDimens.radius_md)
             )
-            .clickable { onClick() },
+            .clickable { onClick() }
+            .then(
+                if (isSelected) Modifier.shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(CaiyunDimens.radius_md)
+                ) else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -330,6 +339,7 @@ private fun BottomOptBtnItem(
             .clip(RoundedCornerShape(CaiyunDimens.radius_md))
             .clickable { onClick() }
             .padding(horizontal = CaiyunDimens.spacing_md, vertical = CaiyunDimens.spacing_sm)
+            .defaultMinSize(minHeight = 48.dp)
     ) {
         Icon(
             imageVector = icon,

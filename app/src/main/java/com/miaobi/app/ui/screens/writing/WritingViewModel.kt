@@ -52,6 +52,7 @@ sealed class WritingEventV2 {
     object RegenerateContinuation : WritingEventV2()
     data class UpdateUserPrompt(val prompt: String) : WritingEventV2()
     data class UpdateLengthOption(val option: LengthOption) : WritingEventV2()
+    data class SelectWriteStyle(val style: WriteStyle) : WritingEventV2()
     
     // Rewrite
     object ToggleRewriteStyleRow : WritingEventV2()
@@ -268,6 +269,7 @@ class WritingViewModelV2 @Inject constructor(
             WritingEventV2.RegenerateContinuation -> regenerateContinuation()
             is WritingEventV2.UpdateUserPrompt -> updateUserPrompt(event.prompt)
             is WritingEventV2.UpdateLengthOption -> updateLengthOption(event.option)
+            is WritingEventV2.SelectWriteStyle -> selectWriteStyle(event.style)
             
             // Rewrite
             WritingEventV2.ToggleRewriteStyleRow -> toggleRewriteStyleRow()
@@ -520,7 +522,11 @@ class WritingViewModelV2 @Inject constructor(
     private fun updateLengthOption(option: LengthOption) {
         _uiState.update { it.copy(continuationState = it.continuationState.copy(lengthOption = option)) }
     }
-    
+
+    private fun selectWriteStyle(style: WriteStyle) {
+        _uiState.update { it.copy(editorUiState = it.editorUiState.copy(selectedWriteStyle = style)) }
+    }
+
     private fun parseContinuationSuggestions(content: String): List<ContinuationSuggestion> {
         if (content.isBlank()) return emptyList()
         

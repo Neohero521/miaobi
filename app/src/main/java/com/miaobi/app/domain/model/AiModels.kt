@@ -6,9 +6,9 @@ enum class LengthOption(
     val maxChars: Int,
     val maxTokens: Int
 ) {
-    SHORT("短", 100, 200, 300),
-    MEDIUM("中", 300, 500, 600),
-    LONG("长", 800, 1200, 1500);
+    SHORT("200字", 100, 200, 300),
+    MEDIUM("400字", 300, 400, 500),
+    LONG("800字", 600, 800, 1000);
 
     /** 推荐续写字数 */
     val wordCount: Int get() = (minChars + maxChars) / 2
