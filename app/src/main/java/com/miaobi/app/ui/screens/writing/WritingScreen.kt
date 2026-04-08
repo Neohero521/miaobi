@@ -45,6 +45,7 @@ import com.miaobi.app.ui.components.TypingIndicator
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.delay
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,15 +77,21 @@ fun WritingScreen(
     var lastAutoSaveTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var isSaving by remember { mutableStateOf(false) }
     var lastSaveSuccess by remember { mutableStateOf(true) }
+    var pendingSaveContent by remember { mutableStateOf<String?>(null) }
 
+    // 防抖自动保存：内容变化后 3 秒无变化才保存
     LaunchedEffect(uiState.content) {
-        val now = System.currentTimeMillis()
-        if (now - lastAutoSaveTime >= 30_000L && uiState.content.isNotBlank()) {
-            lastAutoSaveTime = now
-            isSaving = true
-            viewModel.onEvent(WritingEvent.SaveContent)
-            kotlinx.coroutines.delay(1500)
-            isSaving = false
+        pendingSaveContent = uiState.content
+        kotlinx.coroutines.delay(3000) // 3秒防抖
+        if (pendingSaveContent == uiState.content && uiState.content.isNotBlank()) {
+            val now = System.currentTimeMillis()
+            if (now - lastAutoSaveTime >= 30_000L) {
+                lastAutoSaveTime = now
+                isSaving = true
+                viewModel.onEvent(WritingEvent.SaveContent)
+                kotlinx.coroutines.delay(1500)
+                isSaving = false
+            }
         }
     }
 
