@@ -70,3 +70,18 @@ val CaiYunOnPrimary = Color.White           // 主色上文字
 val Success = Color(0xFF4CAF50)
 val Error = Color(0xFFE53935)
 val Warning = Color(0xFFFF9800)
+
+// ─── 编辑面板专属配色（1:1匹配彩云小梦UI）──────────────────────────────────────
+val EditorPrimary = Color(0xFFFFA500)           // 主色调 - 原项目橙色
+val EditorPrimaryDark = Color(0xFFE69500)       // 主色深
+val EditorBackground = Color.White              // 编辑区背景
+val BottomBarBackground = Color(0xFFF8F8F8)     // 底部功能栏背景
+val InputBoxBackground = Color(0xFFF0F0F0)      // 输入框背景
+val EditorTextPrimary = Color(0xFF333333)       // 主文字
+val EditorTextSecondary = Color(0xFF666666)     // 次要文字
+val EditorTextHint = Color(0xFF999999)          // 提示文字
+val EditorTextWhite = Color.White               // 白色文字
+val BtnSelected = Color(0xFFE8E8E8)              // 选中按钮背景
+val BtnUnselected = Color.White                 // 未选中按钮背景
+val BtnDisabled = Color(0xFFCCCCCC)             // 禁用状态
+val DividerLine = Color(0xFFEEEEEE)             // 分割线

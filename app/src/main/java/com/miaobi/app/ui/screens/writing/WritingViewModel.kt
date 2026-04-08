@@ -4,9 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miaobi.app.domain.model.*
-import com.miaobi.app.domain.model.ContinuationSuggestion
-import com.miaobi.app.domain.model.MultiBranchState
-import com.miaobi.app.domain.model.RewriteState
 import com.miaobi.app.domain.repository.*
 import com.miaobi.app.domain.usecase.GenerateBranchesUseCase
 import com.miaobi.app.domain.usecase.GenerateInspirationUseCase
@@ -17,175 +14,198 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class WritingUiState(
-    // === 新增：沉浸模式与工具栏 ===
-    val isImmersiveMode: Boolean = false,
-    val showToolbar: Boolean = true,
+/**
+ * =================================══════════════════════════════════════
+ * WritingViewModel V2 - 参考 Claude Code 架构重构
+ * =================================══════════════════════════════════════
+ * 
+ * 重构要点：
+ * 1. State 扁平化 - 拆分为独立的状态域
+ * 2. 统一 AI 任务状态机 - AiTaskState 状态追踪
+ * 3. AiTaskManager - 统一 Job 管理
+ * 4. Selector 模式 - 按需获取避免不必要重组
+ * 
+ * Claude Code 参考：
+ * - Agent Loop: AsyncGenerator 流式模式
+ * - State 管理: Zustand 扁平化
+ * - Job 管理: trackWrite 串行化模式
+ */
 
-    // === 新增：底部抽屉 ===
-    val showContinuationPanel: Boolean = false,
-    val continuationSuggestions: List<ContinuationSuggestion> = emptyList(),
-
-    // === 新增：Rewrite 风格 Tab ===
-    val showRewriteStyleRow: Boolean = false,
-    val selectedStyle: RewriteStyle = RewriteStyle.MODERN,
-
-    // === 新增：V/O 模式 ===
-    val isVoMode: Boolean = true,
-
-    // === 新增：Undo/Redo 栈 ===
-    val undoStack: List<String> = emptyList(),
-    val redoStack: List<String> = emptyList(),
-
-    // === 现有字段（保留）===
-    val story: Story? = null,
-    val currentChapter: Chapter? = null,
-    val chapters: List<Chapter> = emptyList(),
-    val characters: List<Character> = emptyList(),
-    val worldSettings: List<WorldSetting> = emptyList(),
-    val drafts: List<ChapterDraft> = emptyList(),
-    val draftVersions: List<ChapterDraftVersion> = emptyList(),
-    val selectedDraftId: Long? = null,
-    val content: String = "",
-    val userPrompt: String = "",
-    val lengthOption: LengthOption = LengthOption.MEDIUM,
-    val isGenerating: Boolean = false,
-    val generatedContent: String = "",
-    val error: String? = null,
-    val isLoading: Boolean = true,
-    val showChapterList: Boolean = false,
-    val showCharacterSheet: Boolean = false,
-    val showWorldSettingSheet: Boolean = false,
-    val showDraftHistory: Boolean = false,
-    val showDraftVersions: Boolean = false,
-    val rewriteState: RewriteState = RewriteState(),
-    val showAddChapterDialog: Boolean = false,
-    val newChapterTitle: String = "",
-    val showAddCharacterDialog: Boolean = false,
-    val newCharacterName: String = "",
-    val newCharacterDescription: String = "",
-    val showAddWorldSettingDialog: Boolean = false,
-    val newWorldSettingName: String = "",
-    val newWorldSettingContent: String = "",
-    val aiConfigValid: Boolean = true,
-    val multiBranchState: MultiBranchState = MultiBranchState(),
-    val showMultiBranchSheet: Boolean = false,
-    val inspirationState: InspirationState = InspirationState(),
-    val showInspirationSheet: Boolean = false
-)
-
-sealed class WritingEvent {
-    // === 新增：沉浸模式与工具栏 ===
-    object ToggleImmersiveMode : WritingEvent()
-    object ToggleToolbar : WritingEvent()
-    object Undo : WritingEvent()
-    object Redo : WritingEvent()
-
-    // === 新增：AI 续写抽屉 ===
-    object ToggleContinuationPanel : WritingEvent()
-    data class UseContinuationSuggestion(val index: Int) : WritingEvent()
-    object RegenerateSuggestions : WritingEvent()
-
-    // === 新增：Rewrite 风格 ===
-    object ToggleRewriteStyleRow : WritingEvent()
-    object Polish : WritingEvent()
-    data class SelectStyle(val style: RewriteStyle) : WritingEvent()
-
-    // === 新增：V/O 模式 ===
-    object ToggleVoMode : WritingEvent()
-
+// ─── Event 定义（保持向后兼容）──────────────────────────────────────────────
+sealed class WritingEventV2 {
     // Content
-    data class UpdateContent(val content: String) : WritingEvent()
-    data class UpdatePrompt(val prompt: String) : WritingEvent()
-    data class UpdateLengthOption(val lengthOption: LengthOption) : WritingEvent()
-    object SaveContent : WritingEvent()
-    object GenerateContinue : WritingEvent()
-    object CancelGeneration : WritingEvent()
-    object AcceptGenerated : WritingEvent()
-    object DiscardGenerated : WritingEvent()
-
-    // Chapter
-    object ToggleChapterList : WritingEvent()
-    object ShowAddChapterDialog : WritingEvent()
-    object HideAddChapterDialog : WritingEvent()
-    data class UpdateNewChapterTitle(val title: String) : WritingEvent()
-    object AddChapter : WritingEvent()
-    data class SelectChapter(val chapter: Chapter) : WritingEvent()
-    data class DeleteChapter(val chapterId: Long) : WritingEvent()
-
-    // Characters
-    object ToggleCharacterSheet : WritingEvent()
-    object ShowAddCharacterDialog : WritingEvent()
-    object HideAddCharacterDialog : WritingEvent()
-    data class UpdateNewCharacterName(val name: String) : WritingEvent()
-    data class UpdateNewCharacterDescription(val description: String) : WritingEvent()
-    object AddCharacter : WritingEvent()
-    data class DeleteCharacter(val characterId: Long) : WritingEvent()
-
-    // World Settings
-    object ToggleWorldSettingSheet : WritingEvent()
-    object ShowAddWorldSettingDialog : WritingEvent()
-    object HideAddWorldSettingDialog : WritingEvent()
-    data class UpdateNewWorldSettingName(val name: String) : WritingEvent()
-    data class UpdateNewWorldSettingContent(val content: String) : WritingEvent()
-    object AddWorldSetting : WritingEvent()
-    data class DeleteWorldSetting(val settingId: Long) : WritingEvent()
-
-    // Drafts
-    object ToggleDraftHistory : WritingEvent()
-    data class SelectDraft(val draft: ChapterDraft) : WritingEvent()
-    data class DeleteDraft(val draftId: Long) : WritingEvent()
-
-    // Draft Versions
-    object ShowDraftVersions : WritingEvent()
-    object HideDraftVersions : WritingEvent()
-    data class SelectDraftForVersions(val draft: ChapterDraft) : WritingEvent()
-    data class RestoreVersion(val version: ChapterDraftVersion) : WritingEvent()
-    data class DeleteVersion(val versionId: Long) : WritingEvent()
-
-    // UI
-    object ClearError : WritingEvent()
-
+    data class UpdateContent(val content: String) : WritingEventV2()
+    object SaveContent : WritingEventV2()
+    
+    // Editor UI
+    object ToggleImmersiveMode : WritingEventV2()
+    object ToggleToolbar : WritingEventV2()
+    object ToggleVoMode : WritingEventV2()
+    object Undo : WritingEventV2()
+    object Redo : WritingEventV2()
+    
+    // AI Continuation
+    object ToggleContinuationPanel : WritingEventV2()
+    object GenerateContinuation : WritingEventV2()
+    object CancelContinuation : WritingEventV2()
+    data class UseContinuationSuggestion(val index: Int) : WritingEventV2()
+    object RegenerateContinuation : WritingEventV2()
+    data class UpdateUserPrompt(val prompt: String) : WritingEventV2()
+    data class UpdateLengthOption(val option: LengthOption) : WritingEventV2()
+    
     // Rewrite
-    data class TriggerRewrite(val selectedText: String) : WritingEvent()
-    data class SelectRewriteStyle(val style: RewriteStyle) : WritingEvent()
-    object ExecuteRewrite : WritingEvent()
-    object CancelRewrite : WritingEvent()
-    data class SelectRewriteVersion(val index: Int) : WritingEvent()
-    object AcceptRewrite : WritingEvent()
-    object StartEditRewrite : WritingEvent()
-    data class UpdateEditingText(val text: String) : WritingEvent()
-    object ConfirmEditRewrite : WritingEvent()
-    object CancelEditRewrite : WritingEvent()
-    object RegenerateRewrite : WritingEvent()
-    object DismissRewrite : WritingEvent()
-
-    // Multi-branch
-    object ToggleMultiBranchSheet : WritingEvent()
-    data class UpdateBranchCount(val count: Int) : WritingEvent()
-    data class UpdateBranchStyle(val style: String) : WritingEvent()
-    data class UpdateBranchLength(val length: Int) : WritingEvent()
-    object GenerateBranches : WritingEvent()
-    object CancelBranches : WritingEvent()
-    data class SelectBranch(val index: Int) : WritingEvent()
-    object AcceptBranch : WritingEvent()
-    data class RegenerateBranch(val index: Int) : WritingEvent()
-    object DismissBranches : WritingEvent()
-
+    object ToggleRewriteStyleRow : WritingEventV2()
+    object Polish : WritingEventV2()
+    data class TriggerRewrite(val selectedText: String) : WritingEventV2()
+    data class SelectRewriteStyle(val style: RewriteStyle) : WritingEventV2()
+    object ExecuteRewrite : WritingEventV2()
+    object CancelRewrite : WritingEventV2()
+    data class SelectRewriteVersion(val index: Int) : WritingEventV2()
+    object AcceptRewrite : WritingEventV2()
+    object StartEditRewrite : WritingEventV2()
+    data class UpdateEditingText(val text: String) : WritingEventV2()
+    object ConfirmEditRewrite : WritingEventV2()
+    object CancelEditRewrite : WritingEventV2()
+    object RegenerateRewrite : WritingEventV2()
+    object DismissRewrite : WritingEventV2()
+    
+    // Multi-Branch
+    object ToggleMultiBranchSheet : WritingEventV2()
+    data class UpdateBranchCount(val count: Int) : WritingEventV2()
+    data class UpdateBranchStyle(val style: String) : WritingEventV2()
+    data class UpdateBranchLength(val length: Int) : WritingEventV2()
+    object GenerateBranches : WritingEventV2()
+    object CancelBranches : WritingEventV2()
+    data class SelectBranch(val index: Int) : WritingEventV2()
+    object AcceptBranch : WritingEventV2()
+    data class RegenerateBranch(val index: Int) : WritingEventV2()
+    object DismissBranches : WritingEventV2()
+    
     // Inspiration
-    object ToggleInspirationSheet : WritingEvent()
-    data class FilterInspirationType(val type: InspirationType?) : WritingEvent()
-    object GenerateInspiration : WritingEvent()
-    object CancelInspiration : WritingEvent()
-    data class SelectInspirationOption(val index: Int) : WritingEvent()
-    data class AcceptInspiration(val option: InspirationOption) : WritingEvent()
-    data class ToggleInspirationFavorite(val index: Int) : WritingEvent()
-    object DismissInspiration : WritingEvent()
-
+    object ToggleInspirationSheet : WritingEventV2()
+    data class FilterInspirationType(val type: InspirationType?) : WritingEventV2()
+    object GenerateInspiration : WritingEventV2()
+    object CancelInspiration : WritingEventV2()
+    data class SelectInspirationOption(val index: Int) : WritingEventV2()
+    data class AcceptInspiration(val option: InspirationOption) : WritingEventV2()
+    data class ToggleInspirationFavorite(val index: Int) : WritingEventV2()
+    object DismissInspiration : WritingEventV2()
+    
+    // Chapter
+    object ToggleChapterList : WritingEventV2()
+    object ShowAddChapterDialog : WritingEventV2()
+    object HideAddChapterDialog : WritingEventV2()
+    data class UpdateNewChapterTitle(val title: String) : WritingEventV2()
+    object AddChapter : WritingEventV2()
+    data class SelectChapter(val chapter: Chapter) : WritingEventV2()
+    data class DeleteChapter(val chapterId: Long) : WritingEventV2()
+    
+    // Character
+    object ToggleCharacterSheet : WritingEventV2()
+    object ShowAddCharacterDialog : WritingEventV2()
+    object HideAddCharacterDialog : WritingEventV2()
+    data class UpdateNewCharacterName(val name: String) : WritingEventV2()
+    data class UpdateNewCharacterDescription(val description: String) : WritingEventV2()
+    object AddCharacter : WritingEventV2()
+    data class DeleteCharacter(val characterId: Long) : WritingEventV2()
+    
+    // World Setting
+    object ToggleWorldSettingSheet : WritingEventV2()
+    object ShowAddWorldSettingDialog : WritingEventV2()
+    object HideAddWorldSettingDialog : WritingEventV2()
+    data class UpdateNewWorldSettingName(val name: String) : WritingEventV2()
+    data class UpdateNewWorldSettingContent(val content: String) : WritingEventV2()
+    object AddWorldSetting : WritingEventV2()
+    data class DeleteWorldSetting(val settingId: Long) : WritingEventV2()
+    
+    // Draft
+    object ToggleDraftHistory : WritingEventV2()
+    data class SelectDraft(val draft: ChapterDraft) : WritingEventV2()
+    data class DeleteDraft(val draftId: Long) : WritingEventV2()
+    object ShowDraftVersions : WritingEventV2()
+    object HideDraftVersions : WritingEventV2()
+    data class SelectDraftForVersions(val draft: ChapterDraft) : WritingEventV2()
+    data class RestoreVersion(val version: ChapterDraftVersion) : WritingEventV2()
+    data class DeleteVersion(val versionId: Long) : WritingEventV2()
+    
+    // Error
+    object ClearError : WritingEventV2()
+    
+    // Generated Content
+    object AcceptGenerated : WritingEventV2()
+    object DiscardGenerated : WritingEventV2()
 }
 
+// ─── 主 State ────────────────────────────────────────────────────────────────
+data class WritingUiStateV2(
+    // Story info (immutable after load)
+    val story: Story? = null,
+    val storyId: Long = -1L,
+    
+    // === 扁平化状态域 ===
+    val contentState: ContentState = ContentState(),
+    val editorUiState: EditorUiState = EditorUiState(),
+    val storyDataState: StoryDataState = StoryDataState(),
+    val sheetState: EditorSheetState = EditorSheetState(),
+    val dialogState: DialogState = DialogState(),
+    
+    // === AI 任务状态 ===
+    val continuationState: AiContinuationState = AiContinuationState(),
+    val rewriteState: RewriteStateV2 = RewriteStateV2(),
+    val multiBranchState: MultiBranchStateV2 = MultiBranchStateV2(),
+    val inspirationState: InspirationStateV2 = InspirationStateV2(),
+    
+    // === 全局状态 ===
+    val isLoading: Boolean = true,
+    val error: String? = null,
+    val generatedContent: String = "",  // 用于 Accept/Discard
+)
+
+// ─── Selectors（参考 Zustand Selector 模式）───────────────────────────────────
+object WritingSelectors {
+    /** 当前章节内容 */
+    fun content(state: WritingUiStateV2) = state.contentState.content
+    
+    /** 是否可以撤销 */
+    fun canUndo(state: WritingUiStateV2) = state.contentState.canUndo
+    
+    /** 是否可以重做 */
+    fun canRedo(state: WritingUiStateV2) = state.contentState.canRedo
+    
+    /** 续写是否进行中 */
+    fun isContinuationActive(state: WritingUiStateV2) = 
+        state.continuationState.taskState is AiTaskState.Generating
+    
+    /** 改写是否进行中 */
+    fun isRewriteActive(state: WritingUiStateV2) = state.rewriteState.isRewriting
+    
+    /** 多分支是否进行中 */
+    fun isMultiBranchActive(state: WritingUiStateV2) = state.multiBranchState.isGenerating
+    
+    /** 灵感是否进行中 */
+    fun isInspirationActive(state: WritingUiStateV2) = state.inspirationState.isGenerating
+    
+    /** 是否有任何 AI 任务进行中 */
+    fun isAnyAiTaskActive(state: WritingUiStateV2) = 
+        isContinuationActive(state) || isRewriteActive(state) || 
+        isMultiBranchActive(state) || isInspirationActive(state)
+    
+    /** 当前章节 */
+    fun currentChapter(state: WritingUiStateV2) = state.contentState.currentChapter
+    
+    /** 章节列表 */
+    fun chapters(state: WritingUiStateV2) = state.storyDataState.chapters
+    
+    /** 角色列表 */
+    fun characters(state: WritingUiStateV2) = state.storyDataState.characters
+    
+    /** 世界设定列表 */
+    fun worldSettings(state: WritingUiStateV2) = state.storyDataState.worldSettings
+}
+
+// ─── ViewModel ────────────────────────────────────────────────────────────────
 @HiltViewModel
-class WritingViewModel @Inject constructor(
+class WritingViewModelV2 @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val storyRepository: StoryRepository,
     private val chapterRepository: ChapterRepository,
@@ -195,671 +215,319 @@ class WritingViewModel @Inject constructor(
     private val aiRepository: AiRepository,
     private val rewriteTextUseCase: RewriteTextUseCase,
     private val generateBranchesUseCase: GenerateBranchesUseCase,
-    private val generateInspirationUseCase: GenerateInspirationUseCase
+    private val generateInspirationUseCase: GenerateInspirationUseCase,
 ) : ViewModel() {
-
+    
     private val storyId: Long = savedStateHandle.get<Long>("storyId") ?: -1L
     private val initialChapterId: Long = savedStateHandle.get<Long>("chapterId") ?: -1L
-
-    private val _uiState = MutableStateFlow(WritingUiState())
-    val uiState: StateFlow<WritingUiState> = _uiState.asStateFlow()
-
-    private var generationJob: Job? = null
+    
+    // ─── 主状态流 ───────────────────────────────────────────────────────────
+    private val _uiState = MutableStateFlow(WritingUiStateV2(storyId = storyId))
+    val uiState: StateFlow<WritingUiStateV2> = _uiState.asStateFlow()
+    
+    // ─── AI 任务管理器 ─────────────────────────────────────────────────────
+    private val aiTaskManager = AiTaskManager(
+        viewModelScope = viewModelScope,
+        onStateUpdate = { type, state -> handleAiTaskStateUpdate(type, state) },
+        onContinuationSuggestions = { suggestions -> 
+            _uiState.update { it.copy(continuationState = it.continuationState.copy(suggestions = suggestions)) }
+        }
+    )
+    
+    // ─── 各类型 Job（简化管理）──────────────────────────────────────────────
+    private var continuationJob: Job? = null
     private var rewriteJob: Job? = null
     private var multiBranchJob: Job? = null
     private var inspirationJob: Job? = null
+    
     init {
         loadStory()
     }
-
-    private fun loadStory() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-
-            // Load story
-            storyRepository.getStoryById(storyId).collect { story ->
-                _uiState.update { it.copy(story = story) }
-            }
-        }
-
-        viewModelScope.launch {
-            // Load chapters
-            chapterRepository.getChaptersByStoryId(storyId).collect { chapters ->
-                _uiState.update { state ->
-                    val updatedChapters = chapters
-                    // Select initial chapter if provided, otherwise first chapter
-                    val selectedChapter = when {
-                        initialChapterId > 0 -> chapters.find { it.id == initialChapterId }
-                        state.currentChapter == null && chapters.isNotEmpty() -> chapters.first()
-                        else -> state.currentChapter
-                    }
-                    state.copy(
-                        chapters = updatedChapters,
-                        currentChapter = selectedChapter,
-                        content = selectedChapter?.content ?: "",
-                        isLoading = false
-                    )
-                }
-                // Load drafts for current chapter
-                _uiState.value.currentChapter?.let { chapter ->
-                    loadDrafts(chapter.id)
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            // Load characters
-            characterRepository.getCharactersByStoryId(storyId).collect { characters ->
-                _uiState.update { it.copy(characters = characters) }
-            }
-        }
-
-        viewModelScope.launch {
-            // Load world settings
-            worldSettingRepository.getWorldSettingsByStoryId(storyId).collect { settings ->
-                _uiState.update { it.copy(worldSettings = settings) }
-            }
-        }
-    }
-
-    private fun loadDrafts(chapterId: Long) {
-        viewModelScope.launch {
-            chapterDraftRepository.getDraftsByChapterId(chapterId).collect { drafts ->
-                _uiState.update { it.copy(drafts = drafts) }
-            }
-        }
-    }
-
-    private fun loadDraftVersions(draftId: Long) {
-        viewModelScope.launch {
-            chapterDraftRepository.getVersionsByDraftId(draftId).collect { versions ->
-                _uiState.update { it.copy(draftVersions = versions) }
-            }
-        }
-    }
-
-    fun onEvent(event: WritingEvent) {
+    
+    // ─── Event 处理（统一入口）──────────────────────────────────────────────
+    fun onEvent(event: WritingEventV2) {
         when (event) {
-            // === 新增：沉浸模式与工具栏 ===
-            WritingEvent.ToggleImmersiveMode -> {
-                _uiState.update { it.copy(isImmersiveMode = !it.isImmersiveMode) }
-            }
-
-            WritingEvent.ToggleToolbar -> {
-                _uiState.update { it.copy(showToolbar = !it.showToolbar) }
-            }
-
-            WritingEvent.Undo -> {
-                val stack = _uiState.value.undoStack
-                if (stack.isNotEmpty()) {
-                    val previous = stack.last()
-                    _uiState.update {
-                        it.copy(
-                            content = previous,
-                            undoStack = stack.dropLast(1),
-                            redoStack = it.redoStack + it.content
-                        )
-                    }
-                }
-            }
-
-            WritingEvent.Redo -> {
-                val stack = _uiState.value.redoStack
-                if (stack.isNotEmpty()) {
-                    val next = stack.last()
-                    _uiState.update {
-                        it.copy(
-                            content = next,
-                            redoStack = stack.dropLast(1),
-                            undoStack = it.undoStack + it.content
-                        )
-                    }
-                }
-            }
-
-            // === 新增：AI 续写抽屉 ===
-            WritingEvent.ToggleContinuationPanel -> {
-                _uiState.update { it.copy(showContinuationPanel = !it.showContinuationPanel) }
-            }
-
-            is WritingEvent.UseContinuationSuggestion -> {
-                val suggestion = _uiState.value.continuationSuggestions.getOrNull(event.index)
-                if (suggestion != null) {
-                    val newContent = _uiState.value.content + suggestion.content
-                    _uiState.update { state ->
-                        state.copy(
-                            content = newContent,
-                            currentChapter = state.currentChapter?.copy(content = newContent),
-                            continuationSuggestions = emptyList(),
-                            showContinuationPanel = false
-                        )
-                    }
-                    saveContent()
-                }
-            }
-
-            WritingEvent.RegenerateSuggestions -> {
-                generateContinuation()
-            }
-
-            // === 新增：Rewrite 风格 Tab ===
-            WritingEvent.ToggleRewriteStyleRow -> {
-                _uiState.update { it.copy(showRewriteStyleRow = !it.showRewriteStyleRow) }
-            }
-
-            is WritingEvent.SelectStyle -> {
-                _uiState.update { it.copy(selectedStyle = event.style) }
-            }
-
-            WritingEvent.Polish -> {
-                // 润色：以全文为 selectedText 执行改写（不替换原文）
-                val text = _uiState.value.content
-                if (text.isNotBlank()) {
-                    _uiState.update {
-                        it.copy(
-                            rewriteState = it.rewriteState.copy(
-                                selectedText = text,
-                                versions = emptyList(),
-                                selectedVersionIndex = 0,
-                                isEditing = false,
-                                editingText = "",
-                                error = null
-                            )
-                        )
-                    }
-                    executeRewrite()
-                }
-            }
-
-            // === 新增：V/O 模式 ===
-            WritingEvent.ToggleVoMode -> {
-                _uiState.update { it.copy(isVoMode = !it.isVoMode) }
-            }
-
-            is WritingEvent.UpdateContent -> {
-                _uiState.update { state ->
-                    val maxUndo = 50
-                    val newUndoStack = if (state.content != event.content) {
-                        (state.undoStack + state.content).takeLast(maxUndo)
-                    } else state.undoStack
-                    // 同步更新 currentChapter，确保 saveContent() 使用正确的 content
-                    val updatedChapter = state.currentChapter?.copy(content = event.content)
-                    state.copy(
-                        content = event.content,
-                        currentChapter = updatedChapter,
-                        undoStack = newUndoStack,
-                        redoStack = emptyList() // 清空 redo 栈
-                    )
-                }
-            }
-
-            is WritingEvent.UpdatePrompt -> {
-                _uiState.update { it.copy(userPrompt = event.prompt) }
-            }
-
-            is WritingEvent.UpdateLengthOption -> {
-                _uiState.update { it.copy(lengthOption = event.lengthOption) }
-            }
-
-            WritingEvent.SaveContent -> saveContent()
-
-            WritingEvent.GenerateContinue -> generateContinuation()
-
-            WritingEvent.CancelGeneration -> {
-                generationJob?.cancel()
-                _uiState.update { it.copy(isGenerating = false, generatedContent = "") }
-            }
-
-            WritingEvent.AcceptGenerated -> {
-                acceptGenerated()
-            }
-
-            WritingEvent.DiscardGenerated -> {
-                _uiState.update { it.copy(generatedContent = "") }
-            }
-
-            // Chapter
-            WritingEvent.ToggleChapterList -> {
-                _uiState.update { it.copy(showChapterList = !it.showChapterList) }
-            }
-
-            WritingEvent.ShowAddChapterDialog -> {
-                _uiState.update { it.copy(showAddChapterDialog = true, newChapterTitle = "") }
-            }
-
-            WritingEvent.HideAddChapterDialog -> {
-                _uiState.update { it.copy(showAddChapterDialog = false, newChapterTitle = "") }
-            }
-
-            is WritingEvent.UpdateNewChapterTitle -> {
-                _uiState.update { it.copy(newChapterTitle = event.title) }
-            }
-
-            WritingEvent.AddChapter -> addChapter()
-
-            is WritingEvent.SelectChapter -> selectChapter(event.chapter)
-
-            is WritingEvent.DeleteChapter -> deleteChapter(event.chapterId)
-
-            // Characters
-            WritingEvent.ToggleCharacterSheet -> {
-                _uiState.update { it.copy(showCharacterSheet = !it.showCharacterSheet) }
-            }
-
-            WritingEvent.ShowAddCharacterDialog -> {
-                _uiState.update {
-                    it.copy(
-                        showAddCharacterDialog = true,
-                        newCharacterName = "",
-                        newCharacterDescription = ""
-                    )
-                }
-            }
-
-            WritingEvent.HideAddCharacterDialog -> {
-                _uiState.update { it.copy(showAddCharacterDialog = false) }
-            }
-
-            is WritingEvent.UpdateNewCharacterName -> {
-                _uiState.update { it.copy(newCharacterName = event.name) }
-            }
-
-            is WritingEvent.UpdateNewCharacterDescription -> {
-                _uiState.update { it.copy(newCharacterDescription = event.description) }
-            }
-
-            WritingEvent.AddCharacter -> addCharacter()
-
-            is WritingEvent.DeleteCharacter -> deleteCharacter(event.characterId)
-
-            // World Settings
-            WritingEvent.ToggleWorldSettingSheet -> {
-                _uiState.update { it.copy(showWorldSettingSheet = !it.showWorldSettingSheet) }
-            }
-
-            WritingEvent.ShowAddWorldSettingDialog -> {
-                _uiState.update {
-                    it.copy(
-                        showAddWorldSettingDialog = true,
-                        newWorldSettingName = "",
-                        newWorldSettingContent = ""
-                    )
-                }
-            }
-
-            WritingEvent.HideAddWorldSettingDialog -> {
-                _uiState.update { it.copy(showAddWorldSettingDialog = false) }
-            }
-
-            is WritingEvent.UpdateNewWorldSettingName -> {
-                _uiState.update { it.copy(newWorldSettingName = event.name) }
-            }
-
-            is WritingEvent.UpdateNewWorldSettingContent -> {
-                _uiState.update { it.copy(newWorldSettingContent = event.content) }
-            }
-
-            WritingEvent.AddWorldSetting -> addWorldSetting()
-
-            is WritingEvent.DeleteWorldSetting -> deleteWorldSetting(event.settingId)
-
-            // Drafts
-            WritingEvent.ToggleDraftHistory -> {
-                _uiState.update { it.copy(showDraftHistory = !it.showDraftHistory) }
-            }
-
-            is WritingEvent.SelectDraft -> selectDraft(event.draft)
-
-            is WritingEvent.DeleteDraft -> deleteDraft(event.draftId)
-
-            // Draft Versions
-            WritingEvent.ShowDraftVersions -> {
-                _uiState.update { it.copy(showDraftVersions = !it.showDraftVersions) }
-            }
-
-            WritingEvent.HideDraftVersions -> {
-                _uiState.update { it.copy(showDraftVersions = false, draftVersions = emptyList()) }
-            }
-
-            is WritingEvent.SelectDraftForVersions -> {
-                _uiState.update { it.copy(selectedDraftId = event.draft.id, showDraftVersions = true) }
-                loadDraftVersions(event.draft.id)
-            }
-
-            is WritingEvent.RestoreVersion -> restoreVersion(event.version)
-
-            is WritingEvent.DeleteVersion -> deleteVersion(event.versionId)
-
+            // Content
+            is WritingEventV2.UpdateContent -> updateContent(event.content)
+            WritingEventV2.SaveContent -> saveContent()
+            WritingEventV2.AcceptGenerated -> acceptGenerated()
+            WritingEventV2.DiscardGenerated -> discardGenerated()
+            
+            // Editor UI
+            WritingEventV2.ToggleImmersiveMode -> toggleImmersiveMode()
+            WritingEventV2.ToggleToolbar -> toggleToolbar()
+            WritingEventV2.ToggleVoMode -> toggleVoMode()
+            WritingEventV2.Undo -> undo()
+            WritingEventV2.Redo -> redo()
+            
+            // Continuation
+            WritingEventV2.ToggleContinuationPanel -> toggleContinuationPanel()
+            WritingEventV2.GenerateContinuation -> generateContinuation()
+            WritingEventV2.CancelContinuation -> cancelContinuation()
+            is WritingEventV2.UseContinuationSuggestion -> useContinuationSuggestion(event.index)
+            WritingEventV2.RegenerateContinuation -> regenerateContinuation()
+            is WritingEventV2.UpdateUserPrompt -> updateUserPrompt(event.prompt)
+            is WritingEventV2.UpdateLengthOption -> updateLengthOption(event.option)
+            
             // Rewrite
-            is WritingEvent.TriggerRewrite -> {
-                _uiState.update {
-                    it.copy(
-                        rewriteState = it.rewriteState.copy(
-                            selectedText = event.selectedText,
-                            versions = emptyList(),
-                            selectedVersionIndex = 0,
-                            isEditing = false,
-                            editingText = "",
-                            error = null
-                        )
-                    )
-                }
-            }
-
-            is WritingEvent.SelectRewriteStyle -> {
-                _uiState.update {
-                    it.copy(
-                        rewriteState = it.rewriteState.copy(
-                            selectedStyle = event.style,
-                            versions = emptyList(),
-                            selectedVersionIndex = 0
-                        )
-                    )
-                }
-            }
-
-            WritingEvent.ExecuteRewrite -> executeRewrite()
-
-            WritingEvent.CancelRewrite -> {
-                rewriteJob?.cancel()
-                _uiState.update {
-                    it.copy(rewriteState = it.rewriteState.copy(isRewriting = false, error = null))
-                }
-            }
-
-            is WritingEvent.SelectRewriteVersion -> {
-                _uiState.update {
-                    val updated = it.rewriteState.versions.mapIndexed { idx, v ->
-                        v.copy(isSelected = idx == event.index)
-                    }
-                    it.copy(
-                        rewriteState = it.rewriteState.copy(
-                            versions = updated,
-                            selectedVersionIndex = event.index
-                        )
-                    )
-                }
-            }
-
-            WritingEvent.AcceptRewrite -> acceptRewrite()
-
-            WritingEvent.StartEditRewrite -> {
-                val version = _uiState.value.rewriteState.selectedVersion
-                _uiState.update {
-                    it.copy(
-                        rewriteState = it.rewriteState.copy(
-                            isEditing = true,
-                            editingText = version?.content ?: ""
-                        )
-                    )
-                }
-            }
-
-            is WritingEvent.UpdateEditingText -> {
-                _uiState.update {
-                    it.copy(rewriteState = it.rewriteState.copy(editingText = event.text))
-                }
-            }
-
-            WritingEvent.ConfirmEditRewrite -> {
-                // Update selected version with edited text
-                val idx = _uiState.value.rewriteState.selectedVersionIndex
-                _uiState.update {
-                    val updated = it.rewriteState.versions.mapIndexed { vidx, v ->
-                        if (vidx == idx) v.copy(content = it.rewriteState.editingText) else v
-                    }
-                    it.copy(
-                        rewriteState = it.rewriteState.copy(
-                            versions = updated,
-                            isEditing = false,
-                            editingText = ""
-                        )
-                    )
-                }
-            }
-
-            WritingEvent.CancelEditRewrite -> {
-                _uiState.update {
-                    it.copy(
-                        rewriteState = it.rewriteState.copy(
-                            isEditing = false,
-                            editingText = ""
-                        )
-                    )
-                }
-            }
-
-            WritingEvent.RegenerateRewrite -> executeRewrite()
-
-            WritingEvent.DismissRewrite -> {
-                rewriteJob?.cancel()
-                _uiState.update {
-                    it.copy(rewriteState = RewriteState())
-                }
-            }
-
-            WritingEvent.ClearError -> {
-                _uiState.update { it.copy(error = null) }
-            }
-
-            // Multi-branch
-            WritingEvent.ToggleMultiBranchSheet -> {
-                _uiState.update { it.copy(showMultiBranchSheet = !it.showMultiBranchSheet) }
-            }
-
-            is WritingEvent.UpdateBranchCount -> {
-                _uiState.update {
-                    it.copy(multiBranchState = it.multiBranchState.copy(branchCount = event.count))
-                }
-            }
-
-            is WritingEvent.UpdateBranchStyle -> {
-                _uiState.update {
-                    it.copy(multiBranchState = it.multiBranchState.copy(style = event.style))
-                }
-            }
-
-            is WritingEvent.UpdateBranchLength -> {
-                _uiState.update {
-                    it.copy(multiBranchState = it.multiBranchState.copy(length = event.length))
-                }
-            }
-
-            WritingEvent.GenerateBranches -> generateBranches()
-
-            WritingEvent.CancelBranches -> {
-                multiBranchJob?.cancel()
-                _uiState.update {
-                    it.copy(
-                        multiBranchState = MultiBranchState(
-                            branchCount = it.multiBranchState.branchCount,
-                            style = it.multiBranchState.style,
-                            length = it.multiBranchState.length
-                        ),
-                        isGenerating = false
-                    )
-                }
-            }
-
-            is WritingEvent.SelectBranch -> {
-                _uiState.update {
-                    val updated = it.multiBranchState.branches.mapIndexed { idx, b ->
-                        b.copy(isSelected = idx == event.index)
-                    }
-                    it.copy(
-                        multiBranchState = it.multiBranchState.copy(
-                            branches = updated,
-                            selectedBranchIndex = event.index
-                        )
-                    )
-                }
-            }
-
-            WritingEvent.AcceptBranch -> acceptBranch()
-
-            is WritingEvent.RegenerateBranch -> regenerateSingleBranch(event.index)
-
-            WritingEvent.DismissBranches -> {
-                multiBranchJob?.cancel()
-                _uiState.update {
-                    it.copy(
-                        showMultiBranchSheet = false,
-                        multiBranchState = MultiBranchState(
-                            branchCount = it.multiBranchState.branchCount,
-                            style = it.multiBranchState.style,
-                            length = it.multiBranchState.length
-                        )
-                    )
-                }
-            }
-
+            WritingEventV2.ToggleRewriteStyleRow -> toggleRewriteStyleRow()
+            WritingEventV2.Polish -> polish()
+            is WritingEventV2.TriggerRewrite -> triggerRewrite(event.selectedText)
+            is WritingEventV2.SelectRewriteStyle -> selectRewriteStyle(event.style)
+            WritingEventV2.ExecuteRewrite -> executeRewrite()
+            WritingEventV2.CancelRewrite -> cancelRewrite()
+            is WritingEventV2.SelectRewriteVersion -> selectRewriteVersion(event.index)
+            WritingEventV2.AcceptRewrite -> acceptRewrite()
+            WritingEventV2.StartEditRewrite -> startEditRewrite()
+            is WritingEventV2.UpdateEditingText -> updateEditingText(event.text)
+            WritingEventV2.ConfirmEditRewrite -> confirmEditRewrite()
+            WritingEventV2.CancelEditRewrite -> cancelEditRewrite()
+            WritingEventV2.RegenerateRewrite -> executeRewrite()
+            WritingEventV2.DismissRewrite -> dismissRewrite()
+            
+            // Multi-Branch
+            WritingEventV2.ToggleMultiBranchSheet -> toggleMultiBranchSheet()
+            is WritingEventV2.UpdateBranchCount -> updateBranchCount(event.count)
+            is WritingEventV2.UpdateBranchStyle -> updateBranchStyle(event.style)
+            is WritingEventV2.UpdateBranchLength -> updateBranchLength(event.length)
+            WritingEventV2.GenerateBranches -> generateBranches()
+            WritingEventV2.CancelBranches -> cancelBranches()
+            is WritingEventV2.SelectBranch -> selectBranch(event.index)
+            WritingEventV2.AcceptBranch -> acceptBranch()
+            is WritingEventV2.RegenerateBranch -> regenerateBranch(event.index)
+            WritingEventV2.DismissBranches -> dismissBranches()
+            
             // Inspiration
-            WritingEvent.ToggleInspirationSheet -> {
-                _uiState.update { it.copy(showInspirationSheet = !it.showInspirationSheet) }
-            }
-
-            is WritingEvent.FilterInspirationType -> {
-                _uiState.update {
-                    it.copy(inspirationState = it.inspirationState.copy(selectedType = event.type))
-                }
-            }
-
-            WritingEvent.GenerateInspiration -> generateInspiration()
-
-            WritingEvent.CancelInspiration -> {
-                inspirationJob?.cancel()
-                _uiState.update {
-                    it.copy(
-                        inspirationState = InspirationState(),
-                        isGenerating = false
-                    )
-                }
-            }
-
-            is WritingEvent.SelectInspirationOption -> {
-                _uiState.update {
-                    val updated = it.inspirationState.options.mapIndexed { idx, opt ->
-                        opt.copy(isSelected = idx == event.index)
-                    }
-                    it.copy(inspirationState = it.inspirationState.copy(options = updated))
-                }
-            }
-
-            is WritingEvent.AcceptInspiration -> acceptInspiration(event.option)
-
-            is WritingEvent.ToggleInspirationFavorite -> {
-                _uiState.update {
-                    val favorites = it.inspirationState.favorites.toMutableSet()
-                    if (favorites.contains(event.index)) {
-                        favorites.remove(event.index)
-                    } else {
-                        favorites.add(event.index)
-                    }
-                    it.copy(inspirationState = it.inspirationState.copy(favorites = favorites))
-                }
-            }
-
-            WritingEvent.DismissInspiration -> {
-                inspirationJob?.cancel()
-                _uiState.update {
-                    it.copy(
-                        showInspirationSheet = false,
-                        inspirationState = InspirationState()
-                    )
-                }
-            }
+            WritingEventV2.ToggleInspirationSheet -> toggleInspirationSheet()
+            is WritingEventV2.FilterInspirationType -> filterInspirationType(event.type)
+            WritingEventV2.GenerateInspiration -> generateInspiration()
+            WritingEventV2.CancelInspiration -> cancelInspiration()
+            is WritingEventV2.SelectInspirationOption -> selectInspirationOption(event.index)
+            is WritingEventV2.AcceptInspiration -> acceptInspiration(event.option)
+            is WritingEventV2.ToggleInspirationFavorite -> toggleInspirationFavorite(event.index)
+            WritingEventV2.DismissInspiration -> dismissInspiration()
+            
+            // Chapter
+            WritingEventV2.ToggleChapterList -> toggleChapterList()
+            WritingEventV2.ShowAddChapterDialog -> showAddChapterDialog()
+            WritingEventV2.HideAddChapterDialog -> hideAddChapterDialog()
+            is WritingEventV2.UpdateNewChapterTitle -> updateNewChapterTitle(event.title)
+            WritingEventV2.AddChapter -> addChapter()
+            is WritingEventV2.SelectChapter -> selectChapter(event.chapter)
+            is WritingEventV2.DeleteChapter -> deleteChapter(event.chapterId)
+            
+            // Character
+            WritingEventV2.ToggleCharacterSheet -> toggleCharacterSheet()
+            WritingEventV2.ShowAddCharacterDialog -> showAddCharacterDialog()
+            WritingEventV2.HideAddCharacterDialog -> hideAddCharacterDialog()
+            is WritingEventV2.UpdateNewCharacterName -> updateNewCharacterName(event.name)
+            is WritingEventV2.UpdateNewCharacterDescription -> updateNewCharacterDescription(event.description)
+            WritingEventV2.AddCharacter -> addCharacter()
+            is WritingEventV2.DeleteCharacter -> deleteCharacter(event.characterId)
+            
+            // World Setting
+            WritingEventV2.ToggleWorldSettingSheet -> toggleWorldSettingSheet()
+            WritingEventV2.ShowAddWorldSettingDialog -> showAddWorldSettingDialog()
+            WritingEventV2.HideAddWorldSettingDialog -> hideAddWorldSettingDialog()
+            is WritingEventV2.UpdateNewWorldSettingName -> updateNewWorldSettingName(event.name)
+            is WritingEventV2.UpdateNewWorldSettingContent -> updateNewWorldSettingContent(event.content)
+            WritingEventV2.AddWorldSetting -> addWorldSetting()
+            is WritingEventV2.DeleteWorldSetting -> deleteWorldSetting(event.settingId)
+            
+            // Draft
+            WritingEventV2.ToggleDraftHistory -> toggleDraftHistory()
+            is WritingEventV2.SelectDraft -> selectDraft(event.draft)
+            is WritingEventV2.DeleteDraft -> deleteDraft(event.draftId)
+            WritingEventV2.ShowDraftVersions -> showDraftVersions()
+            WritingEventV2.HideDraftVersions -> hideDraftVersions()
+            is WritingEventV2.SelectDraftForVersions -> selectDraftForVersions(event.draft)
+            is WritingEventV2.RestoreVersion -> restoreVersion(event.version)
+            is WritingEventV2.DeleteVersion -> deleteVersion(event.versionId)
+            
+            // Error
+            WritingEventV2.ClearError -> clearError()
         }
     }
-
+    
+    // ─── Content 操作 ───────────────────────────────────────────────────────
+    private fun updateContent(newContent: String) {
+        _uiState.update { state ->
+            state.copy(
+                contentState = state.contentState.pushUndo(state.contentState.content).copy(
+                    content = newContent,
+                    currentChapter = state.contentState.currentChapter?.copy(content = newContent)
+                )
+            )
+        }
+    }
+    
     private fun saveContent() {
-        val chapter = _uiState.value.currentChapter ?: return
-        val content = _uiState.value.content
-
+        val chapter = _uiState.value.contentState.currentChapter ?: return
+        val content = _uiState.value.contentState.content
+        
         viewModelScope.launch {
             chapterRepository.updateChapterContent(chapter.id, content)
         }
     }
-
-    private fun generateContinuation() {
-        val chapter = _uiState.value.currentChapter
-        if (chapter == null) {
-            _uiState.update { it.copy(error = "请先选择或创建一个章节") }
-            return
+    
+    private fun acceptGenerated() {
+        val newContent = _uiState.value.contentState.content + _uiState.value.generatedContent
+        val updatedChapter = _uiState.value.contentState.currentChapter?.copy(content = newContent)
+        
+        _uiState.update { state ->
+            state.copy(
+                contentState = state.contentState.copy(content = newContent, currentChapter = updatedChapter),
+                generatedContent = "",
+                continuationState = state.continuationState.copy(userPrompt = "")
+            )
         }
-
-        val charactersText = _uiState.value.characters.joinToString("\n") {
+        saveContent()
+    }
+    
+    private fun discardGenerated() {
+        _uiState.update { it.copy(generatedContent = "") }
+    }
+    
+    // ─── Editor UI 操作 ─────────────────────────────────────────────────────
+    private fun toggleImmersiveMode() {
+        _uiState.update { it.copy(editorUiState = it.editorUiState.copy(isImmersiveMode = !it.editorUiState.isImmersiveMode)) }
+    }
+    
+    private fun toggleToolbar() {
+        _uiState.update { it.copy(editorUiState = it.editorUiState.copy(showToolbar = !it.editorUiState.showToolbar)) }
+    }
+    
+    private fun toggleVoMode() {
+        _uiState.update { it.copy(editorUiState = it.editorUiState.copy(isVoMode = !it.editorUiState.isVoMode)) }
+    }
+    
+    private fun undo() {
+        _uiState.update { state ->
+            val undone = state.contentState.undo()
+            state.copy(
+                contentState = undone.copy(currentChapter = undone.currentChapter?.copy(content = undone.content)),
+            )
+        }
+    }
+    
+    private fun redo() {
+        _uiState.update { state ->
+            val redone = state.contentState.redo()
+            state.copy(
+                contentState = redone.copy(currentChapter = redone.currentChapter?.copy(content = redone.content)),
+            )
+        }
+    }
+    
+    // ─── Continuation 操作 ──────────────────────────────────────────────────
+    private fun toggleContinuationPanel() {
+        _uiState.update { it.copy(sheetState = it.sheetState.copy(showContinuationPanel = !it.sheetState.showContinuationPanel)) }
+    }
+    
+    private fun generateContinuation() {
+        val chapter = _uiState.value.contentState.currentChapter ?: return
+        
+        val charactersText = _uiState.value.storyDataState.characters.joinToString("\n") {
             "${it.name}: ${it.description}"
         }
-        val worldSettingsText = _uiState.value.worldSettings.joinToString("\n") {
+        val worldSettingsText = _uiState.value.storyDataState.worldSettings.joinToString("\n") {
             "${it.name}: ${it.content}"
         }
-
-        generationJob = viewModelScope.launch {
+        
+        val fullContent = _uiState.value.contentState.content.ifBlank { chapter.content }
+        
+        continuationJob?.cancel()
+        continuationJob = viewModelScope.launch {
+            val accumulated = StringBuilder()
+            
             _uiState.update {
                 it.copy(
-                    isGenerating = true,
+                    continuationState = it.continuationState.copy(
+                        taskState = AiTaskState.Generating(),
+                        suggestions = emptyList(),
+                    ),
                     generatedContent = "",
-                    error = null,
-                    showContinuationPanel = true,
-                    continuationSuggestions = emptyList()
                 )
             }
-
-            val fullContent = if (chapter.content.isNotBlank()) {
-                chapter.content
-            } else {
-                _uiState.value.content
-            }
-
-            val accumulated = StringBuilder()
+            
             aiRepository.continueStory(
-                prompt = _uiState.value.userPrompt,
+                prompt = _uiState.value.continuationState.userPrompt,
                 characters = charactersText,
                 worldSettings = worldSettingsText,
                 historyContent = fullContent,
-                lengthOption = _uiState.value.lengthOption
+                lengthOption = _uiState.value.continuationState.lengthOption
             ).collect { response ->
                 if (response.error != null) {
                     _uiState.update {
-                        it.copy(isGenerating = false, error = response.error)
+                        it.copy(continuationState = it.continuationState.copy(taskState = AiTaskState.Error(response.error)))
                     }
                 } else if (response.isFinished) {
-                    // Split accumulated content into 3 suggestions
-                    val suggestions = splitIntoSuggestions(accumulated.toString())
+                    val suggestions = parseContinuationSuggestions(accumulated.toString())
                     _uiState.update {
                         it.copy(
-                            isGenerating = false,
-                            continuationSuggestions = suggestions,
+                            continuationState = it.continuationState.copy(
+                                taskState = AiTaskState.Completed(accumulated.toString(), suggestions),
+                                suggestions = suggestions
+                            ),
                             generatedContent = accumulated.toString()
                         )
                     }
                 } else {
                     accumulated.append(response.content)
-                    // Progress bar is intentionally hidden — we show "生成中…" in the UI
-                    // since we cannot know total length without Content-Length header.
                     _uiState.update {
-                        it.copy(generatedContent = accumulated.toString())
+                        it.copy(
+                            continuationState = it.continuationState.copy(
+                                taskState = AiTaskState.Generating(accumulated.toString())
+                            ),
+                            generatedContent = accumulated.toString()
+                        )
                     }
                 }
             }
         }
     }
-
-    /**
-     * 将累积的续写内容拆分为 3 条独立方向的建议
-     * 优先解析 AI 返回的 `===方向X===` 分隔符；若无分隔符则均分内容。
-     */
-    private fun splitIntoSuggestions(content: String): List<ContinuationSuggestion> {
+    
+    private fun cancelContinuation() {
+        continuationJob?.cancel()
+        _uiState.update {
+            it.copy(continuationState = it.continuationState.copy(taskState = AiTaskState.Idle))
+        }
+    }
+    
+    private fun useContinuationSuggestion(index: Int) {
+        val suggestion = _uiState.value.continuationState.suggestions.getOrNull(index) ?: return
+        val newContent = _uiState.value.contentState.content + suggestion.content
+        val updatedChapter = _uiState.value.contentState.currentChapter?.copy(content = newContent)
+        
+        _uiState.update {
+            it.copy(
+                contentState = it.contentState.copy(content = newContent, currentChapter = updatedChapter),
+                continuationState = it.continuationState.copy(suggestions = emptyList()),
+                sheetState = it.sheetState.copy(showContinuationPanel = false)
+            )
+        }
+        saveContent()
+    }
+    
+    private fun regenerateContinuation() {
+        generateContinuation()
+    }
+    
+    private fun updateUserPrompt(prompt: String) {
+        _uiState.update { it.copy(continuationState = it.continuationState.copy(userPrompt = prompt)) }
+    }
+    
+    private fun updateLengthOption(option: LengthOption) {
+        _uiState.update { it.copy(continuationState = it.continuationState.copy(lengthOption = option)) }
+    }
+    
+    private fun parseContinuationSuggestions(content: String): List<ContinuationSuggestion> {
         if (content.isBlank()) return emptyList()
-
-        // 尝试按方向标记分割
+        
         val directionRegex = Regex("""===方向(\d+)===""")
         val parts = content.split(directionRegex)
-
-        // parts[0] 是方向1之前的内容，parts[1]是方向1的内容，parts[2]是方向2的内容...
-        // 正则 split 的结果是：["", "方向1内容", "方向2内容", "方向3内容"]
+        
         if (parts.size >= 4) {
-            // parts[0] 为空串（方向标记前的空内容），从 parts[1] 开始是实际内容
             val directions = listOf("剧情升级", "情感互动", "意外转折")
             val suggestions = listOf(1, 2, 3).mapNotNull { index ->
                 val partContent = parts.getOrNull(index)?.trim() ?: return@mapNotNull null
@@ -869,17 +537,16 @@ class WritingViewModel @Inject constructor(
                     content = partContent,
                     wordCount = partContent.length,
                     isSelected = index == 1,
-                    directionLabel = "方向${index}：${directions[index - 1]}"
+                    directionLabel = "方向$index：${directions[index - 1]}"
                 )
             }
             if (suggestions.isNotEmpty()) return suggestions
         }
-
-        // 回退：均分内容为3段（保持向后兼容）
+        
         val totalLength = content.length
         val partSize = totalLength / 3
         val directions = listOf("剧情升级", "情感互动", "意外转折")
-
+        
         return listOf(0, 1, 2).map { index ->
             val start = index * partSize
             val end = if (index == 2) totalLength else (index + 1) * partSize
@@ -893,48 +560,53 @@ class WritingViewModel @Inject constructor(
             )
         }.filter { it.content.isNotBlank() }
     }
-
-    private fun acceptGenerated() {
-        val newContent = _uiState.value.content + _uiState.value.generatedContent
-        val updatedChapter = _uiState.value.currentChapter?.copy(content = newContent)
-        _uiState.update {
-            it.copy(
-                content = newContent,
-                currentChapter = updatedChapter,
-                generatedContent = "",
-                userPrompt = ""
-            )
+    
+    // ─── Rewrite 操作 ───────────────────────────────────────────────────────
+    private fun toggleRewriteStyleRow() {
+        _uiState.update { 
+            it.copy(sheetState = it.sheetState.copy(showRewriteSheet = !it.sheetState.showRewriteSheet))
         }
-        saveContent()
     }
-
+    
+    private fun polish() {
+        val text = _uiState.value.contentState.content
+        if (text.isNotBlank()) {
+            triggerRewrite(text)
+            executeRewrite()
+        }
+    }
+    
+    private fun triggerRewrite(selectedText: String) {
+        _uiState.update {
+            it.copy(rewriteState = it.rewriteState.copy(selectedText = selectedText).withClearedResult())
+        }
+    }
+    
+    private fun selectRewriteStyle(style: RewriteStyle) {
+        _uiState.update {
+            it.copy(rewriteState = it.rewriteState.copy(selectedStyle = style).withClearedResult())
+        }
+    }
+    
     private fun executeRewrite() {
         val rewriteState = _uiState.value.rewriteState
         if (!rewriteState.canRewrite) return
-
-        val charactersText = _uiState.value.characters.joinToString("\n") {
+        
+        val charactersText = _uiState.value.storyDataState.characters.joinToString("\n") {
             "${it.name}: ${it.description}"
         }
-        val worldSettingsText = _uiState.value.worldSettings.joinToString("\n") {
+        val worldSettingsText = _uiState.value.storyDataState.worldSettings.joinToString("\n") {
             "${it.name}: ${it.content}"
         }
-
+        
         rewriteJob?.cancel()
         rewriteJob = viewModelScope.launch {
+            val accumulated = StringBuilder()
+            
             _uiState.update {
-                it.copy(
-                    rewriteState = it.rewriteState.copy(
-                        isRewriting = true,
-                        versions = emptyList(),
-                        selectedVersionIndex = 0,
-                        error = null
-                    )
-                )
+                it.copy(rewriteState = it.rewriteState.copy(isRewriting = true, versions = emptyList()))
             }
-
-            val fullResponse = StringBuilder()
-            val delimiter = RewriteStyle.VERSION_DELIMITER
-
+            
             rewriteTextUseCase(
                 originalText = rewriteState.selectedText,
                 style = rewriteState.selectedStyle,
@@ -945,132 +617,209 @@ class WritingViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(rewriteState = it.rewriteState.copy(isRewriting = false, error = response.error))
                     }
-                    return@collect
-                }
-
-                if (response.isFinished) {
-                    // Parse all versions from accumulated response
-                    val versions = parseRewriteVersions(fullResponse.toString(), delimiter)
+                } else if (response.isFinished) {
+                    val versions = parseRewriteVersions(accumulated.toString())
                     _uiState.update {
-                        it.copy(
-                            rewriteState = it.rewriteState.copy(
-                                isRewriting = false,
-                                versions = versions
-                            )
-                        )
+                        it.copy(rewriteState = it.rewriteState.copy(isRewriting = false, versions = versions))
                     }
                 } else {
-                    fullResponse.append(response.content)
+                    accumulated.append(response.content)
                 }
             }
         }
     }
-
-    private fun parseRewriteVersions(rawResponse: String, delimiter: String): List<RewriteVersion> {
-        val parts = rawResponse.split(delimiter).map { it.trim() }.filter { it.isNotBlank() }
-        return parts.take(3).mapIndexed { idx, content ->
-            RewriteVersion(index = idx, content = content, isSelected = idx == 0)
+    
+    private fun cancelRewrite() {
+        rewriteJob?.cancel()
+        _uiState.update {
+            it.copy(rewriteState = it.rewriteState.copy(isRewriting = false))
         }
     }
-
+    
+    private fun selectRewriteVersion(index: Int) {
+        _uiState.update {
+            val updated = it.rewriteState.versions.mapIndexed { idx, v -> v.copy(isSelected = idx == index) }
+            it.copy(rewriteState = it.rewriteState.copy(versions = updated, selectedVersionIndex = index))
+        }
+    }
+    
     private fun acceptRewrite() {
         val rewriteState = _uiState.value.rewriteState
         val version = rewriteState.selectedVersion ?: return
         val originalText = rewriteState.selectedText
         val newContent = version.content
-
-        // Replace selected text with the chosen rewrite version in the content
-        val currentContent = _uiState.value.content
+        
+        val currentContent = _uiState.value.contentState.content
         val newFullContent = currentContent.replace(originalText, newContent)
-        val updatedChapter = _uiState.value.currentChapter?.copy(content = newFullContent)
-
+        val updatedChapter = _uiState.value.contentState.currentChapter?.copy(content = newFullContent)
+        
         _uiState.update {
             it.copy(
-                content = newFullContent,
-                currentChapter = updatedChapter,
-                rewriteState = RewriteState()
+                contentState = it.contentState.copy(content = newFullContent, currentChapter = updatedChapter),
+                rewriteState = RewriteStateV2()
             )
         }
         saveContent()
     }
-
-    private fun generateBranches() {
-        val chapter = _uiState.value.currentChapter
-        if (chapter == null) {
-            _uiState.update { it.copy(multiBranchState = it.multiBranchState.copy(error = "请先选择或创建一个章节")) }
-            return
+    
+    private fun startEditRewrite() {
+        val version = _uiState.value.rewriteState.selectedVersion
+        _uiState.update {
+            it.copy(rewriteState = it.rewriteState.copy(isEditing = true, editingText = version?.content ?: ""))
         }
-
-        val charactersText = _uiState.value.characters.joinToString("\n") {
+    }
+    
+    private fun updateEditingText(text: String) {
+        _uiState.update { it.copy(rewriteState = it.rewriteState.copy(editingText = text)) }
+    }
+    
+    private fun confirmEditRewrite() {
+        val idx = _uiState.value.rewriteState.selectedVersionIndex
+        _uiState.update {
+            val updated = it.rewriteState.versions.mapIndexed { vidx, v ->
+                if (vidx == idx) v.copy(content = it.rewriteState.editingText) else v
+            }
+            it.copy(rewriteState = it.rewriteState.copy(versions = updated, isEditing = false, editingText = ""))
+        }
+    }
+    
+    private fun cancelEditRewrite() {
+        _uiState.update { it.copy(rewriteState = it.rewriteState.copy(isEditing = false, editingText = "")) }
+    }
+    
+    private fun dismissRewrite() {
+        rewriteJob?.cancel()
+        _uiState.update { it.copy(rewriteState = RewriteStateV2()) }
+    }
+    
+    private fun parseRewriteVersions(rawResponse: String): List<RewriteVersion> {
+        val delimiter = "---版本分割线---"
+        val parts = rawResponse.split(delimiter).map { it.trim() }.filter { it.isNotBlank() }
+        return parts.take(3).mapIndexed { idx, content ->
+            RewriteVersion(index = idx, content = content, isSelected = idx == 0)
+        }
+    }
+    
+    // ─── Multi-Branch 操作 ───────────────────────────────────────────────────
+    private fun toggleMultiBranchSheet() {
+        _uiState.update { it.copy(sheetState = it.sheetState.copy(showMultiBranchSheet = !it.sheetState.showMultiBranchSheet)) }
+    }
+    
+    private fun updateBranchCount(count: Int) {
+        _uiState.update { it.copy(multiBranchState = it.multiBranchState.copy(branchCount = count)) }
+    }
+    
+    private fun updateBranchStyle(style: String) {
+        _uiState.update { it.copy(multiBranchState = it.multiBranchState.copy(style = style)) }
+    }
+    
+    private fun updateBranchLength(length: Int) {
+        _uiState.update { it.copy(multiBranchState = it.multiBranchState.copy(length = length)) }
+    }
+    
+    private fun generateBranches() {
+        val chapter = _uiState.value.contentState.currentChapter ?: return
+        
+        val charactersText = _uiState.value.storyDataState.characters.joinToString("\n") {
             "${it.name}: ${it.description}"
         }
-        val worldSettingsText = _uiState.value.worldSettings.joinToString("\n") {
+        val worldSettingsText = _uiState.value.storyDataState.worldSettings.joinToString("\n") {
             "${it.name}: ${it.content}"
         }
-
+        
         multiBranchJob?.cancel()
         multiBranchJob = viewModelScope.launch {
-            val branchCount = _uiState.value.multiBranchState.branchCount
-            val fullContent = _uiState.value.content.ifBlank { chapter.content }
-
+            val fullContent = _uiState.value.contentState.content.ifBlank { chapter.content }
+            
             _uiState.update {
                 it.copy(
                     multiBranchState = it.multiBranchState.copy(
-                        branches = (0 until branchCount).map { i -> BranchOption(index = i) },
-                        isGenerating = true,
-                        error = null
+                        branches = (0 until it.multiBranchState.branchCount).map { i -> BranchOption(index = i) },
+                        isGenerating = true
                     )
                 )
             }
-
+            
             generateBranchesUseCase(
                 currentContent = fullContent,
                 characters = charactersText,
                 worldSettings = worldSettingsText,
-                userInstruction = _uiState.value.userPrompt.takeIf { p -> p.isNotBlank() },
-                branchCount = branchCount,
-                lengthOption = _uiState.value.lengthOption
+                userInstruction = _uiState.value.continuationState.userPrompt.takeIf { p -> p.isNotBlank() },
+                branchCount = _uiState.value.multiBranchState.branchCount,
+                lengthOption = _uiState.value.continuationState.lengthOption
             ).collect { branches ->
                 _uiState.update {
                     it.copy(multiBranchState = it.multiBranchState.copy(branches = branches))
                 }
             }
-
+            
             _uiState.update {
                 it.copy(multiBranchState = it.multiBranchState.copy(isGenerating = false))
             }
         }
     }
-
-    private fun regenerateSingleBranch(branchIndex: Int) {
-        val chapter = _uiState.value.currentChapter ?: return
-        val charactersText = _uiState.value.characters.joinToString("\n") {
+    
+    private fun cancelBranches() {
+        multiBranchJob?.cancel()
+        _uiState.update {
+            it.copy(multiBranchState = it.multiBranchState.copy(isGenerating = false))
+        }
+    }
+    
+    private fun selectBranch(index: Int) {
+        _uiState.update {
+            val updated = it.multiBranchState.branches.mapIndexed { idx, b -> b.copy(isSelected = idx == index) }
+            it.copy(multiBranchState = it.multiBranchState.copy(branches = updated, selectedBranchIndex = index))
+        }
+    }
+    
+    private fun acceptBranch() {
+        val selectedBranch = _uiState.value.multiBranchState.selectedBranch ?: return
+        if (!selectedBranch.canAccept) return
+        
+        val newContent = _uiState.value.contentState.content + selectedBranch.content
+        val updatedChapter = _uiState.value.contentState.currentChapter?.copy(content = newContent)
+        
+        _uiState.update {
+            it.copy(
+                contentState = it.contentState.copy(content = newContent, currentChapter = updatedChapter),
+                sheetState = it.sheetState.copy(showMultiBranchSheet = false),
+                multiBranchState = MultiBranchStateV2(
+                    branchCount = it.multiBranchState.branchCount,
+                    style = it.multiBranchState.style,
+                    length = it.multiBranchState.length
+                )
+            )
+        }
+        saveContent()
+    }
+    
+    private fun regenerateBranch(branchIndex: Int) {
+        val chapter = _uiState.value.contentState.currentChapter ?: return
+        
+        val charactersText = _uiState.value.storyDataState.characters.joinToString("\n") {
             "${it.name}: ${it.description}"
         }
-        val worldSettingsText = _uiState.value.worldSettings.joinToString("\n") {
+        val worldSettingsText = _uiState.value.storyDataState.worldSettings.joinToString("\n") {
             "${it.name}: ${it.content}"
         }
-
+        
         viewModelScope.launch {
-            // Mark the specific branch as generating
             val updatedBranches = _uiState.value.multiBranchState.branches.map {
-                if (it.index == branchIndex) it.copy(isGenerating = true, content = "", error = null)
-                else it
+                if (it.index == branchIndex) it.copy(isGenerating = true, content = "", error = null) else it
             }
             _uiState.update { it.copy(multiBranchState = it.multiBranchState.copy(branches = updatedBranches)) }
-
-            val fullContent = _uiState.value.content.ifBlank { chapter.content }
-            val branchCount = _uiState.value.multiBranchState.branchCount
-
+            
+            val fullContent = _uiState.value.contentState.content.ifBlank { chapter.content }
+            
             generateBranchesUseCase(
                 currentContent = fullContent,
                 characters = charactersText,
                 worldSettings = worldSettingsText,
-                userInstruction = _uiState.value.userPrompt.takeIf { p -> p.isNotBlank() },
-                branchCount = branchCount,
-                lengthOption = _uiState.value.lengthOption
+                userInstruction = _uiState.value.continuationState.userPrompt.takeIf { p -> p.isNotBlank() },
+                branchCount = _uiState.value.multiBranchState.branchCount,
+                lengthOption = _uiState.value.continuationState.lengthOption
             ).collect { branches ->
-                // Only update the specific branch
                 val currentBranches = _uiState.value.multiBranchState.branches.toMutableList()
                 val newBranch = branches.find { it.index == branchIndex }
                 if (newBranch != null) {
@@ -1083,238 +832,420 @@ class WritingViewModel @Inject constructor(
             }
         }
     }
-
-    private fun acceptBranch() {
-        val selectedBranch = _uiState.value.multiBranchState.selectedBranch ?: return
-        if (!selectedBranch.canAccept) return
-
-        val newContent = _uiState.value.content + selectedBranch.content
-        val updatedChapter = _uiState.value.currentChapter?.copy(content = newContent)
-
+    
+    private fun dismissBranches() {
+        multiBranchJob?.cancel()
         _uiState.update {
             it.copy(
-                content = newContent,
-                currentChapter = updatedChapter,
-                showMultiBranchSheet = false,
-                multiBranchState = MultiBranchState(
-                    branchCount = it.multiBranchState.branchCount,
-                    style = it.multiBranchState.style,
-                    length = it.multiBranchState.length
-                ),
-                userPrompt = ""
+                sheetState = it.sheetState.copy(showMultiBranchSheet = false),
+                multiBranchState = MultiBranchStateV2()
             )
         }
-        saveContent()
     }
-
+    
+    // ─── Inspiration 操作 ───────────────────────────────────────────────────
+    private fun toggleInspirationSheet() {
+        _uiState.update { it.copy(sheetState = it.sheetState.copy(showInspirationSheet = !it.sheetState.showInspirationSheet)) }
+    }
+    
+    private fun filterInspirationType(type: InspirationType?) {
+        _uiState.update { it.copy(inspirationState = it.inspirationState.copy(selectedType = type)) }
+    }
+    
     private fun generateInspiration() {
-        val chapter = _uiState.value.currentChapter
-        if (chapter == null) {
-            _uiState.update { it.copy(inspirationState = it.inspirationState.copy(error = "请先选择或创建一个章节")) }
-            return
-        }
-
-        val charactersText = _uiState.value.characters.joinToString("\n") {
+        val chapter = _uiState.value.contentState.currentChapter ?: return
+        
+        val charactersText = _uiState.value.storyDataState.characters.joinToString("\n") {
             "${it.name}: ${it.description}"
         }
-        val worldSettingsText = _uiState.value.worldSettings.joinToString("\n") {
+        val worldSettingsText = _uiState.value.storyDataState.worldSettings.joinToString("\n") {
             "${it.name}: ${it.content}"
         }
-
+        
         inspirationJob?.cancel()
         inspirationJob = viewModelScope.launch {
-            val typeFilter = _uiState.value.inspirationState.selectedType
-            val fullContent = _uiState.value.content.ifBlank { chapter.content }
-
+            val fullContent = _uiState.value.contentState.content.ifBlank { chapter.content }
+            
             _uiState.update {
-                it.copy(
-                    inspirationState = it.inspirationState.copy(
-                        options = emptyList(),
-                        isGenerating = true,
-                        error = null
-                    )
-                )
+                it.copy(inspirationState = it.inspirationState.copy(options = emptyList(), isGenerating = true))
             }
-
+            
             generateInspirationUseCase(
                 currentContent = fullContent,
                 characters = charactersText,
                 worldSettings = worldSettingsText,
                 count = 4,
-                typeFilter = typeFilter
+                typeFilter = _uiState.value.inspirationState.selectedType
             ).collect { options ->
-                _uiState.update {
-                    it.copy(inspirationState = it.inspirationState.copy(options = options))
-                }
+                _uiState.update { it.copy(inspirationState = it.inspirationState.copy(options = options)) }
             }
-
+            
             _uiState.update {
                 it.copy(inspirationState = it.inspirationState.copy(isGenerating = false))
             }
         }
     }
-
+    
+    private fun cancelInspiration() {
+        inspirationJob?.cancel()
+        _uiState.update {
+            it.copy(inspirationState = it.inspirationState.copy(isGenerating = false))
+        }
+    }
+    
+    private fun selectInspirationOption(index: Int) {
+        _uiState.update {
+            val updated = it.inspirationState.options.mapIndexed { idx, opt -> opt.copy(isSelected = idx == index) }
+            it.copy(inspirationState = it.inspirationState.copy(options = updated))
+        }
+    }
+    
     private fun acceptInspiration(option: InspirationOption) {
         if (!option.canAccept) return
-
-        val newContent = _uiState.value.content + "\n\n" + option.content
-        val updatedChapter = _uiState.value.currentChapter?.copy(content = newContent)
+        
+        val newContent = _uiState.value.contentState.content + "\n\n" + option.content
+        val updatedChapter = _uiState.value.contentState.currentChapter?.copy(content = newContent)
+        
         _uiState.update {
             it.copy(
-                content = newContent,
-                currentChapter = updatedChapter,
-                showInspirationSheet = false,
-                inspirationState = InspirationState()
+                contentState = it.contentState.copy(content = newContent, currentChapter = updatedChapter),
+                sheetState = it.sheetState.copy(showInspirationSheet = false),
+                inspirationState = InspirationStateV2()
             )
         }
         saveContent()
     }
-
+    
+    private fun toggleInspirationFavorite(index: Int) {
+        _uiState.update {
+            val favorites = it.inspirationState.favorites.toMutableSet()
+            if (favorites.contains(index)) favorites.remove(index) else favorites.add(index)
+            it.copy(inspirationState = it.inspirationState.copy(favorites = favorites))
+        }
+    }
+    
+    private fun dismissInspiration() {
+        inspirationJob?.cancel()
+        _uiState.update {
+            it.copy(
+                sheetState = it.sheetState.copy(showInspirationSheet = false),
+                inspirationState = InspirationStateV2()
+            )
+        }
+    }
+    
+    // ─── 数据加载 ───────────────────────────────────────────────────────────
+    private fun loadStory() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            
+            storyRepository.getStoryById(storyId).collect { story ->
+                _uiState.update { it.copy(story = story) }
+            }
+        }
+        
+        viewModelScope.launch {
+            chapterRepository.getChaptersByStoryId(storyId).collect { chapters ->
+                _uiState.update { state ->
+                    val selectedChapter = when {
+                        initialChapterId > 0 -> chapters.find { it.id == initialChapterId }
+                        state.contentState.currentChapter == null && chapters.isNotEmpty() -> chapters.first()
+                        else -> state.contentState.currentChapter
+                    }
+                    state.copy(
+                        storyDataState = state.storyDataState.copy(chapters = chapters),
+                        contentState = state.contentState.copy(
+                            currentChapter = selectedChapter,
+                            content = selectedChapter?.content ?: ""
+                        ),
+                        isLoading = false
+                    )
+                }
+                _uiState.value.contentState.currentChapter?.let { loadDrafts(it.id) }
+            }
+        }
+        
+        viewModelScope.launch {
+            characterRepository.getCharactersByStoryId(storyId).collect { characters ->
+                _uiState.update { it.copy(storyDataState = it.storyDataState.copy(characters = characters)) }
+            }
+        }
+        
+        viewModelScope.launch {
+            worldSettingRepository.getWorldSettingsByStoryId(storyId).collect { settings ->
+                _uiState.update { it.copy(storyDataState = it.storyDataState.copy(worldSettings = settings)) }
+            }
+        }
+    }
+    
+    private fun loadDrafts(chapterId: Long) {
+        viewModelScope.launch {
+            chapterDraftRepository.getDraftsByChapterId(chapterId).collect { drafts ->
+                _uiState.update { it.copy(storyDataState = it.storyDataState.copy(drafts = drafts)) }
+            }
+        }
+    }
+    
+    private fun loadDraftVersions(draftId: Long) {
+        viewModelScope.launch {
+            chapterDraftRepository.getVersionsByDraftId(draftId).collect { versions ->
+                _uiState.update {
+                    it.copy(storyDataState = it.storyDataState.copy(draftVersions = versions))
+                }
+            }
+        }
+    }
+    
+    // ─── Sheet/Dialog 操作 ─────────────────────────────────────────────────
+    private fun toggleChapterList() {
+        _uiState.update { it.copy(sheetState = it.sheetState.copy(showChapterList = !it.sheetState.showChapterList)) }
+    }
+    
+    private fun toggleCharacterSheet() {
+        _uiState.update { it.copy(sheetState = it.sheetState.copy(showCharacterSheet = !it.sheetState.showCharacterSheet)) }
+    }
+    
+    private fun toggleWorldSettingSheet() {
+        _uiState.update { it.copy(sheetState = it.sheetState.copy(showWorldSettingSheet = !it.sheetState.showWorldSettingSheet)) }
+    }
+    
+    private fun toggleDraftHistory() {
+        _uiState.update { it.copy(sheetState = it.sheetState.copy(showDraftHistory = !it.sheetState.showDraftHistory)) }
+    }
+    
+    private fun showDraftVersions() {
+        _uiState.update { it.copy(sheetState = it.sheetState.copy(showDraftVersions = true)) }
+    }
+    
+    private fun hideDraftVersions() {
+        _uiState.update {
+            it.copy(
+                sheetState = it.sheetState.copy(showDraftVersions = false),
+                storyDataState = it.storyDataState.copy(draftVersions = emptyList())
+            )
+        }
+    }
+    
+    private fun showAddChapterDialog() {
+        _uiState.update {
+            it.copy(dialogState = it.dialogState.copy(showAddChapterDialog = true, newChapterTitle = ""))
+        }
+    }
+    
+    private fun hideAddChapterDialog() {
+        _uiState.update {
+            it.copy(dialogState = it.dialogState.copy(showAddChapterDialog = false, newChapterTitle = ""))
+        }
+    }
+    
+    private fun updateNewChapterTitle(title: String) {
+        _uiState.update { it.copy(dialogState = it.dialogState.copy(newChapterTitle = title)) }
+    }
+    
+    private fun showAddCharacterDialog() {
+        _uiState.update {
+            it.copy(dialogState = it.dialogState.copy(
+                showAddCharacterDialog = true,
+                newCharacterName = "",
+                newCharacterDescription = ""
+            ))
+        }
+    }
+    
+    private fun hideAddCharacterDialog() {
+        _uiState.update { it.copy(dialogState = it.dialogState.copy(showAddCharacterDialog = false)) }
+    }
+    
+    private fun updateNewCharacterName(name: String) {
+        _uiState.update { it.copy(dialogState = it.dialogState.copy(newCharacterName = name)) }
+    }
+    
+    private fun updateNewCharacterDescription(description: String) {
+        _uiState.update { it.copy(dialogState = it.dialogState.copy(newCharacterDescription = description)) }
+    }
+    
+    private fun showAddWorldSettingDialog() {
+        _uiState.update {
+            it.copy(dialogState = it.dialogState.copy(
+                showAddWorldSettingDialog = true,
+                newWorldSettingName = "",
+                newWorldSettingContent = ""
+            ))
+        }
+    }
+    
+    private fun hideAddWorldSettingDialog() {
+        _uiState.update { it.copy(dialogState = it.dialogState.copy(showAddWorldSettingDialog = false)) }
+    }
+    
+    private fun updateNewWorldSettingName(name: String) {
+        _uiState.update { it.copy(dialogState = it.dialogState.copy(newWorldSettingName = name)) }
+    }
+    
+    private fun updateNewWorldSettingContent(content: String) {
+        _uiState.update { it.copy(dialogState = it.dialogState.copy(newWorldSettingContent = content)) }
+    }
+    
+    // ─── CRUD 操作 ─────────────────────────────────────────────────────────
     private fun addChapter() {
-        val title = _uiState.value.newChapterTitle.ifBlank { "第${_uiState.value.chapters.size + 1}章" }
+        val title = _uiState.value.dialogState.newChapterTitle.ifBlank {
+            "第${_uiState.value.storyDataState.chapters.size + 1}章"
+        }
         val chapter = Chapter(
             storyId = storyId,
             title = title,
             content = "",
-            orderIndex = _uiState.value.chapters.size
+            orderIndex = _uiState.value.storyDataState.chapters.size
         )
-
+        
         viewModelScope.launch {
             val chapterId = chapterRepository.insertChapter(chapter)
             val newChapter = chapter.copy(id = chapterId)
             _uiState.update {
                 it.copy(
-                    currentChapter = newChapter,
-                    content = "",
-                    showAddChapterDialog = false,
-                    newChapterTitle = ""
+                    contentState = it.contentState.copy(currentChapter = newChapter, content = ""),
+                    dialogState = it.dialogState.copy(showAddChapterDialog = false, newChapterTitle = "")
                 )
             }
         }
     }
-
+    
     private fun selectChapter(chapter: Chapter) {
         _uiState.update {
             it.copy(
-                currentChapter = chapter,
-                content = chapter.content,
-                showChapterList = false
+                contentState = it.contentState.copy(currentChapter = chapter, content = chapter.content),
+                sheetState = it.sheetState.copy(showChapterList = false)
             )
         }
         loadDrafts(chapter.id)
     }
-
+    
     private fun deleteChapter(chapterId: Long) {
         viewModelScope.launch {
             chapterRepository.deleteChapter(chapterId)
-            if (_uiState.value.currentChapter?.id == chapterId) {
+            if (_uiState.value.contentState.currentChapter?.id == chapterId) {
                 _uiState.update {
                     it.copy(
-                        currentChapter = it.chapters.firstOrNull { c -> c.id != chapterId },
-                        content = "",
-                        chapters = it.chapters.filter { c -> c.id != chapterId }
+                        contentState = it.contentState.copy(
+                            currentChapter = it.storyDataState.chapters.firstOrNull { c -> c.id != chapterId },
+                            content = ""
+                        ),
+                        storyDataState = it.storyDataState.copy(
+                            chapters = it.storyDataState.chapters.filter { c -> c.id != chapterId }
+                        )
                     )
                 }
             }
         }
     }
-
+    
     private fun addCharacter() {
-        val name = _uiState.value.newCharacterName
-        val description = _uiState.value.newCharacterDescription
+        val name = _uiState.value.dialogState.newCharacterName
+        val description = _uiState.value.dialogState.newCharacterDescription
         if (name.isBlank()) return
-
-        val character = Character(
-            storyId = storyId,
-            name = name,
-            description = description
-        )
-
+        
+        val character = Character(storyId = storyId, name = name, description = description)
+        
         viewModelScope.launch {
             characterRepository.insertCharacter(character)
             _uiState.update {
-                it.copy(
-                    showAddCharacterDialog = false,
-                    newCharacterName = "",
-                    newCharacterDescription = ""
-                )
+                it.copy(dialogState = it.dialogState.copy(showAddCharacterDialog = false))
             }
         }
     }
-
+    
     private fun deleteCharacter(characterId: Long) {
-        viewModelScope.launch {
-            characterRepository.deleteCharacter(characterId)
-        }
+        viewModelScope.launch { characterRepository.deleteCharacter(characterId) }
     }
-
+    
     private fun addWorldSetting() {
-        val name = _uiState.value.newWorldSettingName
-        val content = _uiState.value.newWorldSettingContent
+        val name = _uiState.value.dialogState.newWorldSettingName
+        val content = _uiState.value.dialogState.newWorldSettingContent
         if (name.isBlank()) return
-
-        val setting = WorldSetting(
-            storyId = storyId,
-            name = name,
-            content = content
-        )
-
+        
+        val setting = WorldSetting(storyId = storyId, name = name, content = content)
+        
         viewModelScope.launch {
             worldSettingRepository.insertWorldSetting(setting)
             _uiState.update {
-                it.copy(
-                    showAddWorldSettingDialog = false,
-                    newWorldSettingName = "",
-                    newWorldSettingContent = ""
-                )
+                it.copy(dialogState = it.dialogState.copy(showAddWorldSettingDialog = false))
             }
         }
     }
-
+    
     private fun deleteWorldSetting(settingId: Long) {
-        viewModelScope.launch {
-            worldSettingRepository.deleteWorldSetting(settingId)
-        }
+        viewModelScope.launch { worldSettingRepository.deleteWorldSetting(settingId) }
     }
-
+    
     private fun selectDraft(draft: ChapterDraft) {
-        val updatedChapter = _uiState.value.currentChapter?.copy(content = draft.content)
+        val updatedChapter = _uiState.value.contentState.currentChapter?.copy(content = draft.content)
         _uiState.update {
             it.copy(
-                content = draft.content,
-                currentChapter = updatedChapter,
-                showDraftHistory = false
+                contentState = it.contentState.copy(content = draft.content, currentChapter = updatedChapter),
+                sheetState = it.sheetState.copy(showDraftHistory = false)
             )
         }
         saveContent()
     }
-
+    
     private fun deleteDraft(draftId: Long) {
-        viewModelScope.launch {
-            chapterDraftRepository.deleteDraft(draftId)
-        }
+        viewModelScope.launch { chapterDraftRepository.deleteDraft(draftId) }
     }
-
-    private fun restoreVersion(version: ChapterDraftVersion) {
-        val updatedChapter = _uiState.value.currentChapter?.copy(content = version.content)
+    
+    private fun selectDraftForVersions(draft: ChapterDraft) {
         _uiState.update {
             it.copy(
-                content = version.content,
-                currentChapter = updatedChapter,
-                showDraftVersions = false,
-                draftVersions = emptyList()
+                storyDataState = it.storyDataState.copy(selectedDraftId = draft.id),
+                sheetState = it.sheetState.copy(showDraftVersions = true)
+            )
+        }
+        loadDraftVersions(draft.id)
+    }
+    
+    private fun restoreVersion(version: ChapterDraftVersion) {
+        val updatedChapter = _uiState.value.contentState.currentChapter?.copy(content = version.content)
+        _uiState.update {
+            it.copy(
+                contentState = it.contentState.copy(content = version.content, currentChapter = updatedChapter),
+                sheetState = it.sheetState.copy(showDraftVersions = false),
+                storyDataState = it.storyDataState.copy(draftVersions = emptyList())
             )
         }
         saveContent()
     }
-
+    
     private fun deleteVersion(versionId: Long) {
-        viewModelScope.launch {
-            // Versions are deleted through cascade from draft or directly
-            // For now we don't have a direct delete, but drafts will clean up versions
-            _uiState.update {
-                it.copy(draftVersions = it.draftVersions.filter { v -> v.id != versionId })
+        _uiState.update {
+            it.copy(storyDataState = it.storyDataState.copy(
+                draftVersions = it.storyDataState.draftVersions.filter { v -> v.id != versionId }
+            ))
+        }
+    }
+    
+    // ─── Error 操作 ─────────────────────────────────────────────────────────
+    private fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+    
+    // ─── AI 任务状态更新 ────────────────────────────────────────────────────
+    private fun handleAiTaskStateUpdate(type: AiTaskType, state: AiTaskState) {
+        when (type) {
+            AiTaskType.CONTINUATION -> {
+                _uiState.update { it.copy(continuationState = it.continuationState.copy(taskState = state)) }
+            }
+            AiTaskType.REWRITE -> {
+                // Rewrite 有自己的状态管理
+            }
+            AiTaskType.MULTI_BRANCH -> {
+                // Multi-Branch 有自己的状态管理
+            }
+            AiTaskType.INSPIRATION -> {
+                // Inspiration 有自己的状态管理
             }
         }
     }
+    
+    // ─── 辅助属性 ───────────────────────────────────────────────────────────
+    private val currentChapter get() = _uiState.value.contentState.currentChapter
+    private val content get() = _uiState.value.contentState.content
 }

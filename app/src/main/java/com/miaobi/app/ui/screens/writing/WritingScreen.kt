@@ -202,39 +202,38 @@ fun WritingScreen(
                 )
             }
 
-            // ── Writing Toolbar ────────────────────────────────────────────────
-            if (uiState.showToolbar) {
-                WritingToolbar(
-                    onUndo = { viewModel.onEvent(WritingEvent.Undo) },
-                    onRedo = { viewModel.onEvent(WritingEvent.Redo) },
-                    onPolish = { viewModel.onEvent(WritingEvent.Polish) },
-                    onRewrite = {
-                        if (uiState.content.isNotBlank()) {
-                            viewModel.onEvent(WritingEvent.TriggerRewrite(uiState.content))
-                            viewModel.onEvent(WritingEvent.ToggleRewriteStyleRow)
-                        }
-                    },
-                    onInspiration = { viewModel.onEvent(WritingEvent.ToggleInspirationSheet) },
-                    onCharacter = { viewModel.onEvent(WritingEvent.ToggleCharacterSheet) },
-                    onWorldSetting = { viewModel.onEvent(WritingEvent.ToggleWorldSettingSheet) },
-                    onSave = { viewModel.onEvent(WritingEvent.SaveContent) },
-                    canUndo = uiState.undoStack.isNotEmpty(),
-                    canRedo = uiState.redoStack.isNotEmpty()
-                )
-            }
-
-            // ── AI Generation Bar ─────────────────────────────────────────────
-            AiGenerationBar(
-                isGenerating = uiState.isGenerating,
-                prompt = uiState.userPrompt,
-                onPromptChange = { viewModel.onEvent(WritingEvent.UpdatePrompt(it)) },
+            // ── 彩云小梦风格编辑面板 ─────────────────────────────────────────
+            CaiyunEditorPanel(
+                editorText = uiState.content,
+                userPrompt = uiState.userPrompt,
                 lengthOption = uiState.lengthOption,
-                onLengthOptionChange = { viewModel.onEvent(WritingEvent.UpdateLengthOption(it)) },
-                onGenerate = { viewModel.onEvent(WritingEvent.GenerateContinue) },
-                onCancel = { viewModel.onEvent(WritingEvent.CancelGeneration) },
-                onSaveDraft = { viewModel.onEvent(WritingEvent.SaveContent) },
-                onShowHistory = { viewModel.onEvent(WritingEvent.ToggleDraftHistory) },
-                onMultiBranch = { viewModel.onEvent(WritingEvent.ToggleMultiBranchSheet) }
+                isGenerating = uiState.isGenerating,
+                canUndo = uiState.undoStack.isNotEmpty(),
+                canRedo = uiState.redoStack.isNotEmpty(),
+                onContentChange = { viewModel.onEvent(WritingEvent.UpdateContent(it)) },
+                onPromptChange = { viewModel.onEvent(WritingEvent.UpdatePrompt(it)) },
+                onLengthChange = { viewModel.onEvent(WritingEvent.UpdateLengthOption(it)) },
+                onUndo = { viewModel.onEvent(WritingEvent.Undo) },
+                onRedo = { viewModel.onEvent(WritingEvent.Redo) },
+                onPolish = { viewModel.onEvent(WritingEvent.Polish) },
+                onRewrite = {
+                    if (uiState.content.isNotBlank()) {
+                        viewModel.onEvent(WritingEvent.TriggerRewrite(uiState.content))
+                        viewModel.onEvent(WritingEvent.ToggleRewriteStyleRow)
+                    }
+                },
+                onInspiration = { viewModel.onEvent(WritingEvent.ToggleInspirationSheet) },
+                onCharacter = { viewModel.onEvent(WritingEvent.ToggleCharacterSheet) },
+                onWorld = { viewModel.onEvent(WritingEvent.ToggleWorldSettingSheet) },
+                onHistory = { viewModel.onEvent(WritingEvent.ToggleDraftHistory) },
+                onBranch = { viewModel.onEvent(WritingEvent.ToggleMultiBranchSheet) },
+                onSave = { viewModel.onEvent(WritingEvent.SaveContent) },
+                onContinue = { viewModel.onEvent(WritingEvent.GenerateContinue) },
+                onCharacterClick = { viewModel.onEvent(WritingEvent.ToggleCharacterSheet) },
+                onWorldClick = { viewModel.onEvent(WritingEvent.ToggleWorldSettingSheet) },
+                onHistoryClick = { viewModel.onEvent(WritingEvent.ToggleDraftHistory) },
+                onBranchClick = { viewModel.onEvent(WritingEvent.ToggleMultiBranchSheet) },
+                onSaveClick = { viewModel.onEvent(WritingEvent.SaveContent) }
             )
         }
     }
@@ -513,7 +512,8 @@ private fun WritingContent(
     onTextSelected: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
-    var textFieldValue by remember(content) {
+    // 使用 remember 而不是 remember(content)，避免 content 变化时重建 TextFieldValue 导致光标跳到开头
+    var textFieldValue by remember {
         mutableStateOf(TextFieldValue(content))
     }
     var lastSelection by remember { mutableStateOf<TextRange?>(null) }
@@ -522,10 +522,13 @@ private fun WritingContent(
     // Keep callback reference stable
     val onTextSelectedRef by rememberUpdatedState(onTextSelected)
 
-    // Sync external content changes into TextFieldValue
+    // Sync external content changes into TextFieldValue, preserving cursor position
     LaunchedEffect(content) {
         if (textFieldValue.text != content) {
-            textFieldValue = TextFieldValue(content)
+            // 保留光标位置，避免跳到开头
+            val oldCursorPos = textFieldValue.selection.min
+            val newCursorPos = oldCursorPos.coerceIn(0, content.length)
+            textFieldValue = TextFieldValue(content, TextRange(newCursorPos))
         }
     }
 
@@ -562,6 +565,8 @@ private fun WritingContent(
                     .fillMaxSize()
                     .verticalScroll(scrollState)
                     .padding(horizontal = 20.dp, vertical = 16.dp),
+                maxLines = Int.MAX_VALUE,
+                singleLine = false,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground,
                     fontFamily = FontFamily.Monospace,

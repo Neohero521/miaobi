@@ -8,7 +8,10 @@ enum class LengthOption(
 ) {
     SHORT("短", 100, 200, 300),
     MEDIUM("中", 300, 500, 600),
-    LONG("长", 800, 1200, 1500)
+    LONG("长", 800, 1200, 1500);
+
+    /** 推荐续写字数 */
+    val wordCount: Int get() = (minChars + maxChars) / 2
 }
 
 data class AiRequest(

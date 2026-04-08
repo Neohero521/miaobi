@@ -33,7 +33,7 @@ fun AiContinuationPanel(
     onUse: (Int) -> Unit,
     onRegenerate: () -> Unit,
     onDismiss: () -> Unit,
-    sheetState: SheetState,
+    sheetState: androidx.compose.material3.SheetState,
     modifier: Modifier = Modifier
 ) {
     ModalBottomSheet(
