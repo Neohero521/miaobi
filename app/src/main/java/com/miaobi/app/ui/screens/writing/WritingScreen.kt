@@ -80,18 +80,28 @@ fun WritingScreen(
     var lastSaveSuccess by remember { mutableStateOf(true) }
     var pendingSaveContent by remember { mutableStateOf<String?>(null) }
 
-    // 防抖自动保存：内容变化后 3 秒无变化才保存
+    // 防抖自动保存：内容变化后 2 秒无变化才保存（缩短到2秒）
     LaunchedEffect(uiState.content) {
         pendingSaveContent = uiState.content
-        kotlinx.coroutines.delay(3000) // 3秒防抖
-        if (pendingSaveContent == uiState.content && uiState.content.isNotBlank()) {
+        kotlinx.coroutines.delay(2000) // 2秒防抖
+        if (pendingSaveContent == uiState.content) {
             val now = System.currentTimeMillis()
-            if (now - lastAutoSaveTime >= 30_000L) {
+            if (now - lastAutoSaveTime >= 10_000L) { // 10秒间隔
                 lastAutoSaveTime = now
                 isSaving = true
                 viewModel.onEvent(WritingEvent.SaveContent)
                 kotlinx.coroutines.delay(1500)
                 isSaving = false
+            }
+        }
+    }
+
+    // 退出时保存
+    DisposableEffect(Unit) {
+        onDispose {
+            // 退出前立即保存
+            if (uiState.content.isNotBlank() || pendingSaveContent?.isNotBlank() == true) {
+                viewModel.onEvent(WritingEvent.SaveContent)
             }
         }
     }
