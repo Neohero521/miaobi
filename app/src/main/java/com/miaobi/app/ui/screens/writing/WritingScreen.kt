@@ -607,19 +607,22 @@ private fun WritingContent(
                 onTextLayout = { layoutResult ->
                     // 光标位置自动滚动：确保光标所在行不被键盘遮挡
                     val cursorPos = textFieldValue.selection.min
-                    if (cursorPos >= 0 && layoutResult.lineCount > 0) {
-                        val cursorLine = layoutResult.getLineForOffset(cursorPos)
-                        val lineBottom = layoutResult.getLineBottom(cursorLine)
-                        val scrollOffset = scrollState.value.toInt()
+                    if (cursorPos >= 0) {
+                        // 使用系统原生方法计算光标位置并滚动
+                        val cursorRect = layoutResult.getCursorRect(cursorPos)
+                        val lineBottomPx = cursorRect.bottom.toInt()
 
-                        // 如果光标行被遮挡（可视区域下方100dp内），则滚动
-                        val bottomThreshold = scrollOffset + 500 // 500px ≈ 250dp
-                        if (lineBottom > bottomThreshold) {
-                            val targetScroll = (lineBottom - 500).toInt()
+                        // 计算当前滚动位置
+                        val currentScroll = scrollState.value
+                        val visibleHeight = 600 // 估算可视区域
+                        val keyboardSpace = 300 // 键盘上方空间
+
+                        // 如果光标行底部低于可视区域底部，滚动
+                        if (lineBottomPx > currentScroll + visibleHeight - keyboardSpace) {
+                            val targetScroll = (lineBottomPx - visibleHeight + keyboardSpace + 50)
+                                .coerceIn(0, scrollState.maxValue)
                             coroutineScope.launch {
-                                scrollState.animateScrollTo(
-                                    targetScroll.coerceIn(0, scrollState.maxValue)
-                                )
+                                scrollState.animateScrollTo(targetScroll)
                             }
                         }
                     }
