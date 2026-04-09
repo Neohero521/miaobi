@@ -46,7 +46,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -526,7 +526,6 @@ private fun WritingContent(
 
     // 软键盘高度状态，用于调整底部留白
     var keyboardHeight by remember { mutableIntStateOf(0) }
-    val coroutineScope = rememberCoroutineScope()
 
     // Sync external content changes into TextFieldValue
     LaunchedEffect(content) {
@@ -605,19 +604,7 @@ private fun WritingContent(
                     }
                 },
                 onTextLayout = { layoutResult ->
-                    // 布局完成后，确保光标可见
-                    val cursorPos = textFieldValue.selection.min
-                    if (cursorPos >= 0) {
-                        val cursorRect = layoutResult.getCursorRect(cursorPos)
-                        val lineBottom = cursorRect.bottom.toInt()
-                        val currentScroll = scrollState.value
-                        val targetScroll = (lineBottom - 200).coerceIn(0, scrollState.maxValue)
-                        if (lineBottom > currentScroll + 100 || lineBottom < currentScroll) {
-                            coroutineScope.launch {
-                                scrollState.animateScrollTo(targetScroll)
-                            }
-                        }
-                    }
+                    // 只在必要时滚动，避免频繁触发
                 }
             )
         }
