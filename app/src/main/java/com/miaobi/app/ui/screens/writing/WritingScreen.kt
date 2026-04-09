@@ -605,16 +605,22 @@ private fun WritingContent(
                     }
                 },
                 onTextLayout = { layoutResult ->
-                    // 光标位置自动滚动：当键盘弹出时，确保光标在可见区域
+                    // 光标位置自动滚动：确保光标所在行不被键盘遮挡
                     val cursorPos = textFieldValue.selection.min
-                    if (cursorPos >= 0) {
+                    if (cursorPos >= 0 && layoutResult.lineCount > 0) {
                         val cursorLine = layoutResult.getLineForOffset(cursorPos)
                         val lineBottom = layoutResult.getLineBottom(cursorLine)
+                        val scrollOffset = scrollState.value.toInt()
 
-                        // 滚动到光标所在行
-                        coroutineScope.launch {
-                            val targetScroll = lineBottom.toInt()
-                            scrollState.animateScrollTo(targetScroll.coerceIn(0, scrollState.maxValue))
+                        // 如果光标行被遮挡（可视区域下方100dp内），则滚动
+                        val bottomThreshold = scrollOffset + 500 // 500px ≈ 250dp
+                        if (lineBottom > bottomThreshold) {
+                            val targetScroll = (lineBottom - 500).toInt()
+                            coroutineScope.launch {
+                                scrollState.animateScrollTo(
+                                    targetScroll.coerceIn(0, scrollState.maxValue)
+                                )
+                            }
                         }
                     }
                 }
