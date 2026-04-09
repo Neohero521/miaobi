@@ -23,7 +23,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
@@ -528,28 +527,6 @@ private fun WritingContent(
     // 软键盘高度状态，用于调整底部留白
     var keyboardHeight by remember { mutableIntStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
-    val view = LocalView.current
-
-    // 当光标位置变化时，自动滚动到光标可见
-    LaunchedEffect(textFieldValue.selection) {
-        val cursorPos = textFieldValue.selection.min
-        if (cursorPos >= 0) {
-            // 使用 post 确保布局完成后再请求滚动
-            view.post {
-                view.requestFocus()
-                // 获取编辑区的 ScrollView/容器，让光标可见
-                (view.parent as? android.view.ViewGroup)?.let { parent ->
-                    val rect = android.graphics.Rect()
-                    view.getLocalVisibleRect(rect)
-                    parent.requestChildRectangleOnScreen(
-                        view,
-                        android.graphics.Rect(0, cursorPos, 0, cursorPos + 50),
-                        true
-                    )
-                }
-            }
-        }
-    }
 
     // Sync external content changes into TextFieldValue
     LaunchedEffect(content) {
@@ -632,18 +609,12 @@ private fun WritingContent(
                     val cursorPos = textFieldValue.selection.min
                     if (cursorPos >= 0) {
                         val cursorRect = layoutResult.getCursorRect(cursorPos)
-                        view.post {
-                            val visibleRect = android.graphics.Rect()
-                            view.getLocalVisibleRect(visibleRect)
-                            // 转换 Compose Rect 到 Android Rect
-                            val androidRect = android.graphics.Rect(
-                                cursorRect.left.toInt(),
-                                cursorRect.top.toInt(),
-                                cursorRect.right.toInt(),
-                                cursorRect.bottom.toInt()
-                            )
-                            if (!visibleRect.contains(androidRect)) {
-                                view.requestRectangleOnScreen(androidRect, true)
+                        val lineBottom = cursorRect.bottom.toInt()
+                        val currentScroll = scrollState.value
+                        val targetScroll = (lineBottom - 200).coerceIn(0, scrollState.maxValue)
+                        if (lineBottom > currentScroll + 100 || lineBottom < currentScroll) {
+                            coroutineScope.launch {
+                                scrollState.animateScrollTo(targetScroll)
                             }
                         }
                     }
