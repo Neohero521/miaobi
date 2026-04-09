@@ -45,7 +45,7 @@ import com.miaobi.app.ui.components.TypingIndicator
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 
@@ -525,6 +525,7 @@ private fun WritingContent(
     onTextSelected: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
     var textFieldValue by remember { mutableStateOf(TextFieldValue(content)) }
     var lastTextValue by remember { mutableStateOf(content) }
 
@@ -606,7 +607,7 @@ private fun WritingContent(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "点击屏幕下方的菱形按钮使用AI续写功能",
+                                    text = "点击屏幕下方菱形按钮使用AI续写",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                                         fontSize = 12.sp
@@ -617,8 +618,23 @@ private fun WritingContent(
                         innerTextField()
                     }
                 },
-                onTextLayout = { _ ->
-                    // 暂不处理布局滚动
+                onTextLayout = { layoutResult ->
+                    // 光标跟随键盘抬起 - 简化版
+                    val cursorPos = textFieldValue.selection.min
+                    if (cursorPos >= 0) {
+                        val cursorRect = layoutResult.getCursorRect(cursorPos)
+                        val cursorBottom = cursorRect.bottom
+                        val currentScroll = scrollState.value
+
+                        // 如果光标在可视区域下方，滚动
+                        if (cursorBottom > currentScroll + 400f) {
+                            val targetScroll = (cursorBottom - 300f).toInt()
+                                .coerceIn(0, scrollState.maxValue)
+                            coroutineScope.launch {
+                                scrollState.animateScrollTo(targetScroll)
+                            }
+                        }
+                    }
                 }
             )
         }
