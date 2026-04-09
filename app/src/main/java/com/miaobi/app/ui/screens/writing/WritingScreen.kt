@@ -515,11 +515,8 @@ private fun WritingContent(
     onTextSelected: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
-    var textFieldValue by remember(content) {
-        mutableStateOf(TextFieldValue(content))
-    }
-    var lastSelection by remember { mutableStateOf<TextRange?>(null) }
-    var pendingSelection by remember { mutableStateOf<String?>(null) }
+    var textFieldValue by remember { mutableStateOf(TextFieldValue(content)) }
+    var lastTextValue by remember { mutableStateOf(content) }
 
     // Keep callback reference stable
     val onTextSelectedRef by rememberUpdatedState(onTextSelected)
@@ -528,9 +525,13 @@ private fun WritingContent(
     var keyboardHeight by remember { mutableIntStateOf(0) }
 
     // Sync external content changes into TextFieldValue
+    // 只有当外部 content 真正变化时才更新（避免覆盖用户输入）
     LaunchedEffect(content) {
-        if (textFieldValue.text != content) {
-            textFieldValue = TextFieldValue(content)
+        if (content != lastTextValue && textFieldValue.text != content) {
+            // 保存当前光标位置
+            val currentCursor = textFieldValue.selection.min
+            textFieldValue = TextFieldValue(content, TextRange(currentCursor.coerceAtMost(content.length)))
+            lastTextValue = content
         }
     }
 
@@ -545,23 +546,26 @@ private fun WritingContent(
             BasicTextField(
                 value = textFieldValue,
                 onValueChange = { newValue ->
-                    val prevSel = lastSelection
-                    val newSel = newValue.selection
-                    val isPureSelection = prevSel != null &&
-                        newSel != prevSel &&
-                        newValue.text == textFieldValue.text
+                    // 检查是否是纯选择变化（非文本输入）
+                    val isPureSelection = newValue.text == textFieldValue.text &&
+                        newValue.selection != textFieldValue.selection
 
                     textFieldValue = newValue
-                    lastSelection = newSel
+                    lastTextValue = newValue.text
 
+                    // 通知内容变化
                     if (newValue.text != content) {
                         onContentChange(newValue.text)
                     }
 
-                    if (isPureSelection && newSel.min != newSel.max) {
-                        val selected = newValue.text.substring(newSel.min, newSel.max)
+                    // 通知选中变化
+                    if (isPureSelection && newValue.selection.min != newValue.selection.max) {
+                        val selected = newValue.text.substring(
+                            newValue.selection.min,
+                            newValue.selection.max
+                        )
                         if (selected.isNotBlank() && selected.length <= 2000) {
-                            pendingSelection = selected
+                            onTextSelectedRef(selected)
                         }
                     }
                 },
@@ -603,18 +607,10 @@ private fun WritingContent(
                         innerTextField()
                     }
                 },
-                onTextLayout = { layoutResult ->
-                    // 只在必要时滚动，避免频繁触发
+                onTextLayout = { _ ->
+                    // 暂不处理布局滚动
                 }
             )
-        }
-    }
-
-    // Fire selection callback outside of onValueChange to avoid composition issues
-    LaunchedEffect(pendingSelection) {
-        pendingSelection?.let { text ->
-            onTextSelectedRef(text)
-            pendingSelection = null
         }
     }
 }
